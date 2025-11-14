@@ -1,0 +1,304 @@
+---
+title: "Deliverable_2"
+author: "Holley"
+date: "2025-11-11"
+output: html_document
+---
+
+
+```{r}
+# STAT 333 - Deliverable 2: Descriptive Statistical Analysis
+# NBA Team Winning Percentage by Game Performance Statistics
+# Casey Gay, Tom Holley - November 14, 2024
+
+
+library(tidyverse)
+library(corrplot)
+library(GGally)
+library(car)
+library(MASS)
+library(knitr)
+library(gridExtra)
+
+
+nba_data <- read.csv("nba_data(in).csv")
+
+nba_data$Season <- as.factor(nba_data$Season)
+nba_data$Team <- as.factor(nba_data$Team)
+
+colnames(nba_data)[7] <- "FG_PCT"
+colnames(nba_data)[10] <- "X3P_PCT"
+colnames(nba_data)[13] <- "X2P_PCT"
+colnames(nba_data)[16] <- "FT_PCT"
+colnames(nba_data)[28] <- "WIN_PCT"
+
+# DESCRIPTIVE STATISTICS
+
+
+# Summary by season
+season_summary <- nba_data %>%
+  group_by(Season) %>%
+  summarise(
+    n = n(),
+    mean_WIN_PCT = mean(WIN_PCT),
+    sd_WIN_PCT = sd(WIN_PCT),
+    mean_FG_PCT = mean(FG_PCT),
+    mean_3P_PCT = mean(X3P_PCT),
+    mean_3PA = mean(X3PA),
+    mean_PTS = mean(PTS),
+    mean_AST = mean(AST),
+    mean_TOV = mean(TOV)
+  )
+
+print(season_summary)
+
+
+# VISUALIZATION
+
+
+# Distribution of Winning Percentage
+p1 <- ggplot(nba_data, aes(x = WIN_PCT)) +
+  geom_histogram(bins = 20, fill = "steelblue", color = "black", alpha = 0.7) +
+  geom_vline(xintercept = 0.5, linetype = "dashed", color = "red", size = 1) +
+  labs(title = "Distribution of Team Winning Percentage (2018-2024)",
+       x = "Winning Percentage", y = "Frequency") +
+  theme_minimal()
+
+# Winning percentage by season
+p2 <- ggplot(nba_data, aes(x = Season, y = WIN_PCT)) +
+  geom_boxplot(fill = "lightblue", alpha = 0.7) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  labs(title = "Winning Percentage Distribution by Season",
+       x = "Season", y = "Winning Percentage") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# 3-Point Attempt Trend Over Time
+p3 <- ggplot(nba_data, aes(x = Season, y = X3PA, group = 1)) +
+  geom_boxplot(fill = "orange", alpha = 0.7) +
+  stat_summary(fun = mean, geom = "line", aes(group = 1), 
+               color = "darkred", size = 1.5) +
+  stat_summary(fun = mean, geom = "point", color = "darkred", size = 3) +
+  labs(title = "Evolution of 3-Point Attempts (2018-2024)",
+       subtitle = "Line shows mean across teams",
+       x = "Season", y = "3-Point Attempts per Game") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Save plots
+ggsave("win_pct_distribution.png", p1, width = 8, height = 6)
+ggsave("win_pct_by_season.png", p2, width = 8, height = 6)
+ggsave("3pa_trend.png", p3, width = 8, height = 6)
+
+
+# CORRELATION ANALYSIS
+
+
+# Select numeric variables for correlation
+ cor_vars <- nba_data %>%
+   dplyr::select(FG_PCT, X3PA, X3P_PCT, X2P_PCT, FT_PCT, 
+          ORB, DRB, TRB, AST, STL, BLK, TOV, PTS, WIN_PCT)
+
+# Correlation matrix
+cor_matrix <- cor(cor_vars, use = "complete.obs")
+
+# Visualize correlation matrix
+png("correlation_heatmap.png", width = 10, height = 10, units = "in", res = 300)
+corrplot(cor_matrix, method = "color", type = "upper", 
+         tl.col = "black", tl.srt = 45,
+         addCoef.col = "black", number.cex = 0.7,
+         title = "Correlation Matrix: Performance Stats vs Winning Percentage",
+         mar = c(0,0,2,0))
+dev.off()
+
+# Correlations with WIN_PCT (sorted)
+win_correlations <- cor_matrix[,"WIN_PCT"] %>%
+  sort(decreasing = TRUE)
+print("Correlations with Winning Percentage:")
+print(round(win_correlations, 3))
+
+
+#KEY BIVARIATE RELATIONSHIPS
+
+
+# Top 4 correlated variables with WIN_PCT
+top_vars <- names(sort(abs(cor_matrix[,"WIN_PCT"]), decreasing = TRUE)[2:5])
+
+# Create scatterplots for top predictors
+plot_list <- lapply(top_vars, function(var) {
+  ggplot(nba_data, aes_string(x = var, y = "WIN_PCT")) +
+    geom_point(alpha = 0.6, color = "steelblue") +
+    geom_smooth(method = "lm", color = "red", se = TRUE) +
+    labs(title = paste("WIN_PCT vs", var),
+         x = var, y = "Winning Percentage") +
+    theme_minimal()
+})
+
+# Arrange plots
+grid.arrange(grobs = plot_list, ncol = 2)
+
+# Save
+ggsave("top_predictors_scatterplots.png", 
+       arrangeGrob(grobs = plot_list, ncol = 2),
+       width = 12, height = 10)
+
+
+# WINNERS VS LOSERS COMPARISON
+
+
+# Create winning/losing indicator
+nba_data <- nba_data %>%
+  mutate(Team_Type = ifelse(WIN_PCT >= 0.5, "Winning Team", "Losing Team"))
+
+# Compare key statistics
+comparison_stats <- nba_data %>%
+  group_by(Team_Type) %>%
+  summarise(
+    n = n(),
+    Mean_FG_PCT = mean(FG_PCT),
+    Mean_3P_PCT = mean(X3P_PCT),
+    Mean_3PA = mean(X3PA),
+    Mean_AST = mean(AST),
+    Mean_TOV = mean(TOV),
+    Mean_TRB = mean(TRB),
+    Mean_PTS = mean(PTS)
+  )
+
+print(comparison_stats)
+
+
+# 7. INITIAL REGRESSION MODELS
+
+
+# Model 1: Full model with all predictors
+full_model <- lm(WIN_PCT ~ FG_PCT + X3PA + X3P_PCT + X2P_PCT + FT_PCT + 
+                   ORB + DRB + TRB + AST + STL + BLK + TOV + PF + PTS,
+                 data = nba_data)
+
+summary(full_model)
+
+# Check multicollinearity
+vif_values <- vif(full_model)
+print("VIF Values for Full Model:")
+print(sort(vif_values, decreasing = TRUE))
+
+# Identify problematic variables (VIF > 10)
+high_vif <- vif_values[vif_values > 10]
+print("Variables with VIF > 10:")
+print(high_vif)
+
+# Model 2: Reduced model removing highly collinear variables
+# Remove PTS (function of FG%), TRB (sum of ORB+DRB)
+reduced_model <- lm(WIN_PCT ~ FG_PCT + X3PA + X3P_PCT + FT_PCT + 
+                      ORB + DRB + AST + STL + BLK + TOV + PF,
+                    data = nba_data)
+
+summary(reduced_model)
+vif(reduced_model)
+
+# Model 3: Stepwise selection (both directions)
+stepwise_model <- stepAIC(full_model, direction = "both", trace = FALSE)
+summary(stepwise_model)
+
+# Model 4: Based on literature (Cabarkapa et al., Chatterjee et al.)
+literature_model <- lm(WIN_PCT ~ FG_PCT + X3P_PCT + FT_PCT + DRB + TOV,
+                       data = nba_data)
+summary(literature_model)
+
+
+# 8. MODEL COMPARISON
+
+
+# Compare models
+model_comparison <- data.frame(
+  Model = c("Full Model", "Reduced Model", "Stepwise Model", "Literature Model"),
+  R_squared = c(summary(full_model)$r.squared,
+                summary(reduced_model)$r.squared,
+                summary(stepwise_model)$r.squared,
+                summary(literature_model)$r.squared),
+  Adj_R_squared = c(summary(full_model)$adj.r.squared,
+                    summary(reduced_model)$adj.r.squared,
+                    summary(stepwise_model)$adj.r.squared,
+                    summary(literature_model)$adj.r.squared),
+  AIC = c(AIC(full_model), AIC(reduced_model), 
+          AIC(stepwise_model), AIC(literature_model)),
+  BIC = c(BIC(full_model), BIC(reduced_model), 
+          BIC(stepwise_model), BIC(literature_model)),
+  Num_Predictors = c(length(coef(full_model)) - 1,
+                     length(coef(reduced_model)) - 1,
+                     length(coef(stepwise_model)) - 1,
+                     length(coef(literature_model)) - 1)
+)
+
+print(model_comparison)
+
+
+# 9. MODEL DIAGNOSTICS FOR BEST MODEL
+
+
+# Choose best model based on comparison 
+best_model <- stepwise_model  
+
+# Diagnostic plots
+png("model_diagnostics.png", width = 12, height = 10, units = "in", res = 300)
+par(mfrow = c(2, 2))
+plot(best_model)
+dev.off()
+
+# Residual normality test
+shapiro.test(residuals(best_model))
+
+# Additional diagnostic: Residuals vs Fitted by Season
+nba_data$residuals <- NA
+nba_data$residuals[as.numeric(names(residuals(best_model)))] <- residuals(best_model)
+nba_data$fitted <- NA
+nba_data$fitted[as.numeric(names(fitted(best_model)))] <- fitted(best_model)
+
+ggplot(nba_data, aes(x = fitted, y = residuals, color = Season)) +
+  geom_point(alpha = 0.6) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(title = "Residuals vs Fitted Values by Season",
+       x = "Fitted Values", y = "Residuals") +
+  theme_minimal()
+
+ggsave("residuals_by_season.png", width = 10, height = 6)
+
+
+
+# 10. SUMMARY OUTPUT FOR REPORT
+
+
+# Create summary table for key findings
+key_findings <- data.frame(
+  Finding = c(
+    "Total Observations",
+    "Number of Teams per Season",
+    "Mean Winning Percentage",
+    "Most Correlated Variable with WIN_PCT",
+    "Least Correlated Variable with WIN_PCT",
+    "Best Model R-squared",
+    "Best Model Adjusted R-squared",
+    "Cross-Validation RMSE",
+    "Number of Significant Predictors"
+  ),
+  Value = c(
+    nrow(nba_data),
+    "30",
+    round(mean(nba_data$WIN_PCT), 3),
+    names(which.max(abs(cor_matrix[-14, "WIN_PCT"]))),
+    names(which.min(abs(cor_matrix[-14, "WIN_PCT"]))),
+    round(summary(best_model)$r.squared, 4),
+    round(summary(best_model)$adj.r.squared, 4),
+    round(mean(cv_summary$RMSE), 4),
+    sum(summary(best_model)$coefficients[-1, 4] < 0.05)
+  )
+)
+
+```
+
+```{r}
+# Model without PF
+NO_PF_model <- lm(formula = WIN_PCT ~ ORB + TRB + STL + TOV + PTS, data = nba_data)
+
+anova(best_model, NO_PF_model)
+```
