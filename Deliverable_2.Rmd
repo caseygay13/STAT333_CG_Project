@@ -40,38 +40,20 @@ colnames(nba_data)[28] <- "WIN_PCT"
 
 # Summary by season
 season_summary <- nba_data %>%
-  group_by(Season) %>%
-  summarise(
+  group_by(Season) %>% 
+  summarize(
     n = n(),
     mean_WIN_PCT = mean(WIN_PCT),
-    sd_WIN_PCT = sd(WIN_PCT),
-    mean_FG_PCT = mean(FG_PCT),
-    mean_3P_PCT = mean(X3P_PCT),
-    mean_3PA = mean(X3PA),
-    mean_PTS = mean(PTS),
-    mean_AST = mean(AST),
-    mean_TOV = mean(TOV),
-  )
+    sd_WIN_PCT = mean(WIN_PCT),
+    across(c(FG, FGA, FG_PCT, X3P, X3PA, X3P_PCT, X2P, X2PA, X2P_PCT, FT, FTA, FT_PCT, ORB, DRB, TRB, AST, STL, BLK, TOV, PF, PTS),
+           mean,
+           .names = "mean_{.col}")
+     )
 
-#season_summary2 <- nba_data %>%
-  #group_by(Season) %>% 
-  #summarize(
-    #n = n(),
-    #mean_WIN_PCT = mean(WIN_PCT),
-    #sd_WIN_PCT = mean(WIN_PCT),
-    #across(c(FG, FGA, FG_PCT, X3P, X3PA, X3P_PCT, X2P, X2PA, X2P_PCT, FT, FTA, FT_PCT, ORB, DRB, TRB, AST, STL, BLK, TOV, PF, PTS),
-           #mean,
-           #.names = "mean_{.col}")
-     #)
-
-#season_summary2 (table displays all possible variables being considered)
-
-print(season_summary)
-
+print(season_summary) #(table displays all possible variables being considered)
 
 
 # VISUALIZATION
-
 
 # Distribution of Winning Percentage
 p1 <- ggplot(nba_data, aes(x = WIN_PCT)) +
@@ -110,31 +92,14 @@ ggsave("3pa_trend.png", p3, width = 8, height = 6)
 
 # CORRELATION ANALYSIS
 
-
 # Select numeric variables for correlation
- cor_vars <- nba_data %>%
-   dplyr::select(FG_PCT, X3PA, X3P_PCT, X2P_PCT, FT_PCT, 
-          ORB, DRB, TRB, AST, STL, BLK, TOV, PTS, WIN_PCT)
-
- #cor_vars2 <- nba_data %>%
-   #dplyr::select(FG, FGA, FG_PCT, X3P, X3PA, X3P_PCT, X2P, X2PA, X2P_PCT, FT, FTA, FT_PCT, ORB, DRB, TRB, AST, STL, BLK, TOV, PF, PTS)
+cor_vars <- nba_data %>%
+  dplyr::select(FG, FGA, FG_PCT, X3P, X3PA, X3P_PCT, X2P, X2PA, X2P_PCT, FT, FTA, FT_PCT, ORB, DRB, TRB, AST, STL, BLK, TOV, PF, PTS, WIN_PCT)
  
- #cor_mat2 <- cor(cor_vars2, use = "complete.obs")
+cor_mat <- cor(cor_vars, use = "complete.obs")
  
- #png("correlation_heatmap.png", width = 10, height = 10, units = "in", res = 300)
-#corrplot(cor_mat2, method = "color", type = "upper", 
-         #tl.col = "black", tl.srt = 45,
-         #addCoef.col = "black", number.cex = 0.7,
-         #title = "Correlation Matrix: Performance Stats vs Winning Percentage",
-         #mar = c(0,0,2,0))
-#dev.off()
- 
-# Correlation matrix
-cor_matrix <- cor(cor_vars, use = "complete.obs")
-
-# Visualize correlation matrix
 png("correlation_heatmap.png", width = 10, height = 10, units = "in", res = 300)
-corrplot(cor_matrix, method = "color", type = "upper", 
+corrplot(cor_mat, method = "color", type = "upper", 
          tl.col = "black", tl.srt = 45,
          addCoef.col = "black", number.cex = 0.7,
          title = "Correlation Matrix: Performance Stats vs Winning Percentage",
@@ -142,7 +107,7 @@ corrplot(cor_matrix, method = "color", type = "upper",
 dev.off()
 
 # Correlations with WIN_PCT (sorted)
-win_correlations <- cor_matrix[,"WIN_PCT"] %>%
+win_correlations <- cor_mat[,"WIN_PCT"] %>%
   sort(decreasing = TRUE)
 print("Correlations with Winning Percentage:")
 print(round(win_correlations, 3))
@@ -152,7 +117,7 @@ print(round(win_correlations, 3))
 
 
 # Top 4 correlated variables with WIN_PCT
-top_vars <- names(sort(abs(cor_matrix[,"WIN_PCT"]), decreasing = TRUE)[2:5])
+top_vars <- names(sort(abs(cor_mat[,"WIN_PCT"]), decreasing = TRUE)[2:5])
 
 # Create scatterplots for top predictors
 plot_list <- lapply(top_vars, function(var) {
@@ -163,6 +128,7 @@ plot_list <- lapply(top_vars, function(var) {
          x = var, y = "Winning Percentage") +
     theme_minimal()
 })
+plot_list
 
 # Arrange plots
 grid.arrange(grobs = plot_list, ncol = 2)
@@ -173,36 +139,11 @@ ggsave("top_predictors_scatterplots.png",
        width = 12, height = 10)
 
 
-# WINNERS VS LOSERS COMPARISON
-
-
-# Create winning/losing indicator
-nba_data <- nba_data %>%
-  mutate(Team_Type = ifelse(WIN_PCT >= 0.5, "Winning Team", "Losing Team"))
-
-# Compare key statistics
-comparison_stats <- nba_data %>%
-  group_by(Team_Type) %>%
-  summarise(
-    n = n(),
-    Mean_FG_PCT = mean(FG_PCT),
-    Mean_3P_PCT = mean(X3P_PCT),
-    Mean_3PA = mean(X3PA),
-    Mean_AST = mean(AST),
-    Mean_TOV = mean(TOV),
-    Mean_TRB = mean(TRB),
-    Mean_PTS = mean(PTS)
-  )
-
-print(comparison_stats)
-
-
 # 7. INITIAL REGRESSION MODELS
 
 
 # Model 1: Full model with all predictors
-full_model <- lm(WIN_PCT ~ FG_PCT + X3PA + X3P_PCT + X2P_PCT + FT_PCT + 
-                   ORB + DRB + TRB + AST + STL + BLK + TOV + PF + PTS,
+full_model <- lm(WIN_PCT ~ FG+FGA+FG_PCT+X3P+X3PA+X3P_PCT+X2P+X2PA+X2P_PCT+FT+FTA+FT_PCT+ ORB+DRB+TRB+AST+STL+BLK+TOV+PF+PTS,
                  data = nba_data)
 
 summary(full_model)
@@ -216,24 +157,34 @@ print(sort(vif_values, decreasing = TRUE))
 high_vif <- vif_values[vif_values > 10]
 print("Variables with VIF > 10:")
 print(high_vif)
+#There are very obvious issues with collinearity -> explore which variables need to be removed
 
 # Model 2: Reduced model removing highly collinear variables
-# Remove PTS (function of FG%), TRB (sum of ORB+DRB)
-reduced_model <- lm(WIN_PCT ~ FG_PCT + X3PA + X3P_PCT + FT_PCT + 
-                      ORB + DRB + AST + STL + BLK + TOV + PF,
+# Removed variables known to be direct functions of other variables (FG, FGA, FG_PCT, PTS, X2P, X3P, FT, TRB)
+reduced_model <- lm(WIN_PCT ~ X2PA+X2P_PCT+X3PA+X3P_PCT+FTA+FT_PCT+ORB+DRB+AST+TOV+PF+STL+BLK,
                     data = nba_data)
 
 summary(reduced_model)
 vif(reduced_model)
+#There are still potential concerns around collinearity for a couple variables, but it looks much better overall, and all VIFs are under 10 (not a hard rule, but a solid reference point)
 
-# Model 3: Stepwise selection (both directions)
+# Model 3: Alternative reduced model, with different collinearity removals
+# Points are capturing the effect of the other shooting variables
+reduced_model2 <- lm(WIN_PCT ~ ORB+TRB+STL+TOV+PF+PTS, data=nba_data)
+summary(reduced_model2)
+vif(reduced_model2)
+#This is the best model so far
+
+# Model 4: Stepwise selection (both directions)
 stepwise_model <- stepAIC(full_model, direction = "both", trace = FALSE)
 summary(stepwise_model)
+#This model includes too many variables, many of which are not significant, which complicates the interpretation of their true effects. The AIC of the reduced_model 2 is also preferred. Thus, this is not our preferred model.
 
-# Model 4: Based on literature (Cabarkapa et al., Chatterjee et al.)
+# Model 5: Based on literature (Cabarkapa et al., Chatterjee et al.)
 literature_model <- lm(WIN_PCT ~ FG_PCT + X3P_PCT + FT_PCT + DRB + TOV,
                        data = nba_data)
 summary(literature_model)
+#This model is not found to be effective for our question.
 
 
 # 8. MODEL COMPARISON
@@ -241,21 +192,24 @@ summary(literature_model)
 
 # Compare models
 model_comparison <- data.frame(
-  Model = c("Full Model", "Reduced Model", "Stepwise Model", "Literature Model"),
+  Model = c("Full Model", "Reduced Model", "Alternative Model", "Stepwise Model", "Literature Model"),
   R_squared = c(summary(full_model)$r.squared,
                 summary(reduced_model)$r.squared,
+                summary(reduced_model2)$r.squared,
                 summary(stepwise_model)$r.squared,
                 summary(literature_model)$r.squared),
   Adj_R_squared = c(summary(full_model)$adj.r.squared,
                     summary(reduced_model)$adj.r.squared,
+                    summary(reduced_model2)$r.squared,
                     summary(stepwise_model)$adj.r.squared,
                     summary(literature_model)$adj.r.squared),
-  AIC = c(AIC(full_model), AIC(reduced_model), 
+  AIC = c(AIC(full_model), AIC(reduced_model), AIC(reduced_model2),
           AIC(stepwise_model), AIC(literature_model)),
-  BIC = c(BIC(full_model), BIC(reduced_model), 
+  BIC = c(BIC(full_model), BIC(reduced_model), BIC(reduced_model2),
           BIC(stepwise_model), BIC(literature_model)),
   Num_Predictors = c(length(coef(full_model)) - 1,
                      length(coef(reduced_model)) - 1,
+                     length(coef(reduced_model2)) - 1,
                      length(coef(stepwise_model)) - 1,
                      length(coef(literature_model)) - 1)
 )
@@ -265,35 +219,9 @@ print(model_comparison)
 
 # 9. MODEL DIAGNOSTICS FOR BEST MODEL
 
-
 # Choose best model based on comparison 
-best_model <- stepwise_model  
-
-# Diagnostic plots
-png("model_diagnostics.png", width = 12, height = 10, units = "in", res = 300)
-par(mfrow = c(2, 2))
-plot(best_model)
-dev.off()
-
-# Residual normality test
-shapiro.test(residuals(best_model))
-
-# Additional diagnostic: Residuals vs Fitted by Season
-nba_data$residuals <- NA
-nba_data$residuals[as.numeric(names(residuals(best_model)))] <- residuals(best_model)
-nba_data$fitted <- NA
-nba_data$fitted[as.numeric(names(fitted(best_model)))] <- fitted(best_model)
-
-ggplot(nba_data, aes(x = fitted, y = residuals, color = Season)) +
-  geom_point(alpha = 0.6) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(title = "Residuals vs Fitted Values by Season",
-       x = "Fitted Values", y = "Residuals") +
-  theme_minimal()
-
-ggsave("residuals_by_season.png", width = 10, height = 6)
-
-
+chosen_model <- reduced_model2  
+print("The alternative model")
 
 # 10. SUMMARY OUTPUT FOR REPORT
 
