@@ -1,8 +1,10 @@
 ---
 title: "Deliverable_2"
-author: "Holley"
+author: "Tom Holley & Casey Gay"
 date: "2025-11-11"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 
@@ -13,6 +15,7 @@ output: html_document
 
 
 library(tidyverse)
+library(tinytex)
 library(corrplot)
 library(GGally)
 library(car)
@@ -47,10 +50,24 @@ season_summary <- nba_data %>%
     mean_3PA = mean(X3PA),
     mean_PTS = mean(PTS),
     mean_AST = mean(AST),
-    mean_TOV = mean(TOV)
+    mean_TOV = mean(TOV),
   )
 
+#season_summary2 <- nba_data %>%
+  #group_by(Season) %>% 
+  #summarize(
+    #n = n(),
+    #mean_WIN_PCT = mean(WIN_PCT),
+    #sd_WIN_PCT = mean(WIN_PCT),
+    #across(c(FG, FGA, FG_PCT, X3P, X3PA, X3P_PCT, X2P, X2PA, X2P_PCT, FT, FTA, FT_PCT, ORB, DRB, TRB, AST, STL, BLK, TOV, PF, PTS),
+           #mean,
+           #.names = "mean_{.col}")
+     #)
+
+#season_summary2 (table displays all possible variables being considered)
+
 print(season_summary)
+
 
 
 # VISUALIZATION
@@ -59,7 +76,7 @@ print(season_summary)
 # Distribution of Winning Percentage
 p1 <- ggplot(nba_data, aes(x = WIN_PCT)) +
   geom_histogram(bins = 20, fill = "steelblue", color = "black", alpha = 0.7) +
-  geom_vline(xintercept = 0.5, linetype = "dashed", color = "red", size = 1) +
+  geom_vline(xintercept = 0.5, linetype = "dashed", color = "red", linewidth = 1) +
   labs(title = "Distribution of Team Winning Percentage (2018-2024)",
        x = "Winning Percentage", y = "Frequency") +
   theme_minimal()
@@ -99,6 +116,19 @@ ggsave("3pa_trend.png", p3, width = 8, height = 6)
    dplyr::select(FG_PCT, X3PA, X3P_PCT, X2P_PCT, FT_PCT, 
           ORB, DRB, TRB, AST, STL, BLK, TOV, PTS, WIN_PCT)
 
+ #cor_vars2 <- nba_data %>%
+   #dplyr::select(FG, FGA, FG_PCT, X3P, X3PA, X3P_PCT, X2P, X2PA, X2P_PCT, FT, FTA, FT_PCT, ORB, DRB, TRB, AST, STL, BLK, TOV, PF, PTS)
+ 
+ #cor_mat2 <- cor(cor_vars2, use = "complete.obs")
+ 
+ #png("correlation_heatmap.png", width = 10, height = 10, units = "in", res = 300)
+#corrplot(cor_mat2, method = "color", type = "upper", 
+         #tl.col = "black", tl.srt = 45,
+         #addCoef.col = "black", number.cex = 0.7,
+         #title = "Correlation Matrix: Performance Stats vs Winning Percentage",
+         #mar = c(0,0,2,0))
+#dev.off()
+ 
 # Correlation matrix
 cor_matrix <- cor(cor_vars, use = "complete.obs")
 
@@ -294,6 +324,8 @@ key_findings <- data.frame(
   )
 )
 
+#row 295 is problematic - 'cv_summary' has not been defined
+#markdown cannot knit with this error - also, I think we should be knitting to PDF rather than HDML
 ```
 
 ```{r}
