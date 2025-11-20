@@ -213,7 +213,7 @@ model_comparison <- data.frame(
 )
 
 graphic2<- kable(model_comparison, align=c("l","l","l","l","l"))
-
+graphic2
 
 # 9. MODEL DIAGNOSTICS FOR BEST MODEL
 
