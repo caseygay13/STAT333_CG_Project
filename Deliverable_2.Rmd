@@ -236,25 +236,184 @@ key_findings <- data.frame(
     "Least Correlated Variable with WIN_PCT",
     "Best Model R-squared",
     "Best Model Adjusted R-squared",
-    "Cross-Validation RMSE",
     "Number of Significant Predictors"
   ),
   Value = c(
     nrow(nba_data),
     "30",
     round(mean(nba_data$WIN_PCT), 3),
-    names(which.max(abs(cor_matrix[-14, "WIN_PCT"]))),
-    names(which.min(abs(cor_matrix[-14, "WIN_PCT"]))),
+    names(which.max(abs(cor_mat[-14, "WIN_PCT"]))),
+    names(which.min(abs(cor_mat[-14, "WIN_PCT"]))),
     round(summary(best_model)$r.squared, 4),
     round(summary(best_model)$adj.r.squared, 4),
-    round(mean(cv_summary$RMSE), 4),
     sum(summary(best_model)$coefficients[-1, 4] < 0.05)
   )
 )
 
-#row 295 is problematic - 'cv_summary' has not been defined
-#markdown cannot knit with this error - also, I think we should be knitting to PDF rather than HDML
+
 ```
+
+
+```{r}
+
+# COLLINEARITY VISUALIZATION
+
+# Method 1: Correlation Network Plot (shows only high correlations)
+library(igraph)
+
+# Create correlation matrix (exclude WIN_PCT)
+cor_matrix <- cor(cor_vars[, -which(names(cor_vars) == "WIN_PCT")], use = "complete.obs")
+
+# Set threshold for high correlation
+threshold <- 0.80
+
+# Create adjacency matrix for high correlations
+cor_adj <- cor_matrix
+cor_adj[abs(cor_adj) < threshold] <- 0
+diag(cor_adj) <- 0
+
+# Check if there are any high correlations to plot
+if(sum(cor_adj != 0) > 0) {
+  # Store the original signed values before taking absolute value
+  cor_signed <- cor_adj
+  
+  # Create network graph - use ABSOLUTE values for weights
+  graph <- graph_from_adjacency_matrix(abs(cor_adj),  
+                                        mode = "undirected", 
+                                        weighted = TRUE,
+                                        diag = FALSE)
+  
+  # Get edge list and assign colors based on original correlation signs
+  edge_list <- as_edgelist(graph)
+  edge_colors <- sapply(1:nrow(edge_list), function(i) {
+    val <- cor_signed[edge_list[i,1], edge_list[i,2]]
+    ifelse(val > 0, "darkred", "darkblue")
+  })
+  
+  # Plot network
+  png("collinearity_network.png", width = 10, height = 10, units = "in", res = 300)
+  set.seed(123)
+  plot(graph,
+       vertex.size = 20,
+       vertex.color = "lightblue",
+       vertex.label.color = "black",
+       vertex.label.cex = 0.8,
+       edge.width = E(graph)$weight * 5,
+       edge.color = edge_colors,
+       main = paste("Collinearity Network (|r| >", threshold, ")"),
+       layout = layout_with_fr(graph))
+  legend("bottomright", 
+         legend = c("Positive correlation", "Negative correlation"),
+         col = c("darkred", "darkblue"),
+         lty = 1, lwd = 2, cex = 0.8)
+  dev.off()
+  print("Network plot saved as 'collinearity_network.png'")
+} else {
+  print(paste("No correlations above threshold of", threshold))
+}
+
+
+# Method 2: Clustered Correlation Heatmap
+png("collinearity_clustered.png", width = 12, height = 10, units = "in", res = 300)
+corrplot(cor_matrix, 
+         method = "color", 
+         type = "full",
+         order = "hclust",  
+         addrect = 4,       
+         tl.col = "black", 
+         tl.srt = 45,
+         addCoef.col = "black", 
+         number.cex = 0.6,
+         title = "Clustered Correlation Matrix: Identifying Collinear Groups",
+         mar = c(0,0,2,0))
+dev.off()
+print("Clustered heatmap saved as 'collinearity_clustered.png'")
+
+
+# Method 3: VIF Bar Plot
+vif_df <- data.frame(
+  Variable = names(vif_values),
+  VIF = as.numeric(vif_values)
+)
+vif_df <- vif_df %>% arrange(desc(VIF))
+
+png("vif_barplot.png", width = 10, height = 6, units = "in", res = 300)
+p_vif <- ggplot(vif_df, aes(x = reorder(Variable, VIF), y = VIF)) +
+  geom_bar(stat = "identity", fill = ifelse(vif_df$VIF > 10, "red", "steelblue")) +
+  geom_hline(yintercept = 10, linetype = "dashed", color = "red", linewidth = 1) +
+  geom_hline(yintercept = 5, linetype = "dashed", color = "orange", linewidth = 1) +
+  coord_flip() +
+  labs(title = "Variance Inflation Factors (VIF)",
+       subtitle = "Red bars indicate VIF > 10 (severe multicollinearity)",
+       x = "Variable",
+       y = "VIF Value") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 10))
+print(p_vif)
+dev.off()
+print("VIF barplot saved as 'vif_barplot.png'")
+
+
+# Method 4: Focused pairs plot for most problematic variables
+high_vif_vars <- names(sort(vif_values, decreasing = TRUE)[1:8])
+
+png("high_collinearity_pairs.png", width = 12, height = 12, units = "in", res = 300)
+p_pairs <- ggpairs(nba_data[, high_vif_vars],
+        title = "Top 8 Variables with Highest VIF: Pairwise Relationships",
+        lower = list(continuous = wrap("points", alpha = 0.3, size = 0.5)),
+        diag = list(continuous = wrap("densityDiag", alpha = 0.5)),
+        upper = list(continuous = wrap("cor", size = 3))) +
+  theme_minimal()
+print(p_pairs)
+dev.off()
+print("Pairs plot saved as 'high_collinearity_pairs.png'")
+
+print("All collinearity visualizations complete!")
+```
+
+```{r}
+# VISUALIZATION: Variables Correlated with PTS
+
+# Extract correlations with PTS
+pts_correlations <- cor_mat[, "PTS"]
+pts_correlations <- pts_correlations[names(pts_correlations) != "PTS"]  
+pts_correlations <- pts_correlations[names(pts_correlations) != "WIN_PCT"]  
+
+# Create data frame for plotting
+pts_cor_df <- data.frame(
+  Variable = names(pts_correlations),
+  Correlation = as.numeric(pts_correlations)
+)
+
+# Bar plot of correlations with PTS
+caption_text <- paste("This graphic shows the correlation coefficient between each respective variable and PTS.",
+"We elected to remove FG, FGA, FG_PCT, AST, X2P, X2PA, X2P_PCT, X3P, X3PA, X3P_PCT, FT, FTA, FT_PCT, BLK, and DRB.",
+"These variables were highly correlated with PTS, and their explanatory power toward WIN_PCT was not great enough to keep them in the model.",
+"We kept ORB, STL, PF, and TOV, none of which had significant correlation with PTS.",
+"We also elected to keep TRB, which was a bit more correlated with PTS, but was found to be a significant explainer of WIN_PCT.")
+
+p4 <- ggplot(pts_cor_df, aes(x = reorder(Variable, Correlation), y = Correlation)) +
+  geom_bar(stat = "identity", 
+           fill = ifelse(pts_cor_df$Correlation > 0, "steelblue", "coral")) +
+  geom_text(aes(label = round(Correlation, 3)), 
+            hjust = ifelse(pts_cor_df$Correlation > 0, -0.1, 1.1), 
+            size = 3) +
+  coord_flip() +
+  geom_hline(yintercept = 0, linetype = "solid", color = "black") +
+  labs(title = "Correlation of All Variables with Points (PTS)",
+       subtitle = "Positive correlations in blue, negative in coral",
+       x = "Variable",
+       y = "Correlation Coefficient",
+       caption = str_wrap(caption_text, width = 120)) +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 10),
+        plot.caption = element_text(hjust = 0.5, size = 9, margin = margin(t = 10)))
+
+
+
+
+```
+
 
 ```{r}
 # Model without PF
