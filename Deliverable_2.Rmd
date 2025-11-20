@@ -389,11 +389,6 @@ pts_cor_df <- data.frame(
 )
 
 # Bar plot of correlations with PTS
-caption_text <- paste("This graphic shows the correlation coefficient between each respective variable and PTS.",
-"We elected to remove FG, FGA, FG_PCT, AST, X2P, X2PA, X2P_PCT, X3P, X3PA, X3P_PCT, FT, FTA, FT_PCT, BLK, and DRB.",
-"These variables were highly correlated with PTS, and their explanatory power toward WIN_PCT was not great enough to keep them in the model.",
-"We kept ORB, STL, PF, and TOV, none of which had significant correlation with PTS.",
-"We also elected to keep TRB, which was a bit more correlated with PTS, but was found to be a significant explainer of WIN_PCT.")
 
 p4 <- ggplot(pts_cor_df, aes(x = reorder(Variable, Correlation), y = Correlation)) +
   geom_bar(stat = "identity", 
@@ -406,8 +401,7 @@ p4 <- ggplot(pts_cor_df, aes(x = reorder(Variable, Correlation), y = Correlation
   labs(title = "Correlation of All Variables with Points (PTS)",
        subtitle = "Positive correlations in blue, negative in coral",
        x = "Variable",
-       y = "Correlation Coefficient",
-       caption = str_wrap(caption_text, width = 120)) +
+       y = "Correlation Coefficient") +
   theme_minimal() +
   theme(axis.text.y = element_text(size = 10),
         plot.caption = element_text(hjust = 0.5, size = 9, margin = margin(t = 10)))
