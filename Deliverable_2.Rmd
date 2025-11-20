@@ -195,12 +195,7 @@ summary(literature_model)
 
 # Compare models
 model_comparison <- data.frame(
-  Model = c("Full Model", "Reduced Model", "Alternative Model", "Stepwise Model", "Literature Model"),
-  R_squared = c(summary(full_model)$r.squared,
-                summary(reduced_model)$r.squared,
-                summary(reduced_model2)$r.squared,
-                summary(stepwise_model)$r.squared,
-                summary(literature_model)$r.squared),
+  Model = c("Full Model", "Reduced Model", "Further Reduced Model", "Stepwise Model", "Literature Model"),
   Adj_R_squared = c(summary(full_model)$adj.r.squared,
                     summary(reduced_model)$adj.r.squared,
                     summary(reduced_model2)$r.squared,
@@ -217,7 +212,7 @@ model_comparison <- data.frame(
                      length(coef(literature_model)) - 1)
 )
 
-print(model_comparison)
+graphic2<- kable(model_comparison, align=c("l","l","l","l","l"))
 
 
 # 9. MODEL DIAGNOSTICS FOR BEST MODEL
@@ -247,9 +242,9 @@ key_findings <- data.frame(
     round(mean(nba_data$WIN_PCT), 3),
     names(which.max(abs(cor_mat[-14, "WIN_PCT"]))),
     names(which.min(abs(cor_mat[-14, "WIN_PCT"]))),
-    round(summary(best_model)$r.squared, 4),
-    round(summary(best_model)$adj.r.squared, 4),
-    sum(summary(best_model)$coefficients[-1, 4] < 0.05)
+    round(summary(chosen_model)$r.squared, 4),
+    round(summary(chosen_model)$adj.r.squared, 4),
+    sum(summary(chosen_model)$coefficients[-1, 4] < 0.05)
   )
 )
 
