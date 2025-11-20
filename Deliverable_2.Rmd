@@ -119,8 +119,11 @@ print(round(win_correlations, 3))
 # Top 4 correlated variables with WIN_PCT
 top_vars <- names(sort(abs(cor_mat[,"WIN_PCT"]), decreasing = TRUE)[2:5])
 
+# Our 6 chosen covariates
+our_vars <- names(sort((cor_mat[,"WIN_PCT"]), decreasing = TRUE) [c(2, 11, 16, 19, 21, 22)])
+
 # Create scatterplots for top predictors
-plot_list <- lapply(top_vars, function(var) {
+plot_list <- lapply(our_vars, function(var) {
   ggplot(nba_data, aes_string(x = var, y = "WIN_PCT")) +
     geom_point(alpha = 0.6, color = "steelblue") +
     geom_smooth(method = "lm", color = "red", se = TRUE) +
