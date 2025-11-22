@@ -189,13 +189,15 @@ literature_model <- lm(WIN_PCT ~ FG_PCT + X3P_PCT + FT_PCT + DRB + TOV,
 summary(literature_model)
 #This model is not found to be effective for our question.
 
+```
 
+```{r}
 # 8. MODEL COMPARISON
 
 
 # Compare models
 model_comparison <- data.frame(
-  Model = c("Full Model", "Reduced Model", "Further Reduced Model", "Stepwise Model", "Literature Model"),
+  Model = c("Full Model", "Reduced Model", "*Further Reduced Model*", "Stepwise Model", "Literature Model"),
   Adj_R_squared = c(summary(full_model)$adj.r.squared,
                     summary(reduced_model)$adj.r.squared,
                     summary(reduced_model2)$r.squared,
@@ -203,8 +205,6 @@ model_comparison <- data.frame(
                     summary(literature_model)$adj.r.squared),
   AIC = c(AIC(full_model), AIC(reduced_model), AIC(reduced_model2),
           AIC(stepwise_model), AIC(literature_model)),
-  BIC = c(BIC(full_model), BIC(reduced_model), BIC(reduced_model2),
-          BIC(stepwise_model), BIC(literature_model)),
   Num_Predictors = c(length(coef(full_model)) - 1,
                      length(coef(reduced_model)) - 1,
                      length(coef(reduced_model2)) - 1,
@@ -212,14 +212,16 @@ model_comparison <- data.frame(
                      length(coef(literature_model)) - 1)
 )
 
-<<<<<<< HEAD
-kable(model_comparison, allign)
 
-=======
-graphic2<- kable(model_comparison, align=c("l","l","l","l","l"))
+
+
+
+graphic2<- kable(model_comparison, align=c("c","c","c","c"))
 graphic2
->>>>>>> 3a66c6ff7af1ab9ab44b3a35913c569768ef8bc5
 
+```
+
+```{r}
 # 9. MODEL DIAGNOSTICS FOR BEST MODEL
 
 # Choose best model based on comparison 
@@ -404,7 +406,7 @@ p4 <- ggplot(pts_cor_df, aes(x = reorder(Variable, Correlation), y = Correlation
             size = 3) +
   coord_flip() +
   geom_hline(yintercept = 0, linetype = "solid", color = "black") +
-  labs(title = "Correlation of All Variables with Points (PTS)",
+  labs(title = "Correlation of Shooting Variables with Points",
        subtitle = "Positive correlations in blue, negative in coral",
        x = "Variable",
        y = "Correlation Coefficient") +
