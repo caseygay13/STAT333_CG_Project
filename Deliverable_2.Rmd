@@ -217,7 +217,7 @@ model_comparison <- data.frame(
                      length(coef(literature_model)) - 1)
 )
 
-print(model_comparison)
+kable(model_comparison, allign)
 
 
 # 9. MODEL DIAGNOSTICS FOR BEST MODEL
@@ -381,7 +381,13 @@ print("All collinearity visualizations complete!")
 pts_correlations <- cor_mat[, "PTS"]
 pts_correlations <- pts_correlations[names(pts_correlations) != "PTS"]  
 pts_correlations <- pts_correlations[names(pts_correlations) != "WIN_PCT"]  
-
+pts_correlations <- pts_correlations[names(pts_correlations) != "TRB"]
+pts_correlations <- pts_correlations[names(pts_correlations) != "DRB"]
+pts_correlations <- pts_correlations[names(pts_correlations) != "ORB"]
+pts_correlations <- pts_correlations[names(pts_correlations) != "PF"]
+pts_correlations <- pts_correlations[names(pts_correlations) != "STL"]
+pts_correlations <- pts_correlations[names(pts_correlations) != "BLK"]
+pts_correlations <- pts_correlations[names(pts_correlations) != "TOV"]
 # Create data frame for plotting
 pts_cor_df <- data.frame(
   Variable = names(pts_correlations),
