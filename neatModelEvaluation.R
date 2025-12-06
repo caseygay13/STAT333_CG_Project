@@ -9,6 +9,7 @@ library(gridExtra)
 library(forecast)
 library(nlme)
 
+
 #Set-Up
 nba_data <- read.csv("nba_data(in).csv")
 nba_data$Season <- as.factor(nba_data$Season)
@@ -106,8 +107,9 @@ step_train3 <- lm(WIN_PCT ~ WIN_PCT_Last+FGA_Last+X3P_Last+X3PA_Last+X2P_Last+X2
 step_preds3 <- predict(step_train3, newdata=test_ar)
 step_MSPE3 <- mean((test_ar$WIN_PCT - step_preds3)^2) #0.02545581
 
-#Current Progress Evaluation
-#An AR(1) model using the PTS Model Variables is the preferred model by the MSPE criterion
+
+# Current Progress Evaluation
+# An AR(1) model using the PTS Model Variables is the preferred model by the MSPE criterion
 
 
 
@@ -126,7 +128,15 @@ shooting_gls <- gls(WIN_PCT ~ WIN_PCT_Last+X2PA_Last+X2P_PCT_Last+X3PA_Last+X3P_
 # Stepwise GLS
 step_gls <- gls(WIN_PCT ~ WIN_PCT_Last+FGA_Last+X3P_Last+X3PA_Last+X2P_Last+X2PA_Last+FT_Last+ORB_Last+TRB_Last+AST_Last+STL_Last+TOV_Last+PF_Last, correlation=corAR1(form=~1),data=train_ar)
 
+# forecasts
 
 
+PTS_gls_preds <- predict(PTS_gls, newdata = test_ar)
+PTS_gls_MSPE <- mean((test_ar$WIN_PCT - PTS_gls_preds)^2) # 0.02092756
 
+shooting_gls_preds <- predict(shooting_gls, newdata = test_ar)
+shooting_gls_MSPE <- mean((test_ar$WIN_PCT - shooting_gls_preds)^2) # 0.02695467
+
+step_gls_preds <- predict(step_gls, newdata = test_ar)
+step_gls_MSPE <- mean((test_ar$WIN_PCT - step_gls_preds)^2) # 0.02493319
 
