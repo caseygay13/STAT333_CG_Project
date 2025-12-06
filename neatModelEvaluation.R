@@ -144,3 +144,23 @@ kable(MSPE_ordered)
 #Forecasting 2024-2025
 chosen_mod <- PTS_ar_model
 summary(chosen_mod)
+
+predict_2025_ar <- lag1_data %>%
+  filter(Season == "2024") %>%
+  dplyr::select(Team, WIN_PCT_Last, ORB_Last, TRB_Last, STL_Last, TOV_Last, PF_Last, PTS_Last)
+
+PTS_2025_fc <- forecast(
+  PTS_ar_model, xreg=as.matrix(predict_2025_ar[, -1]))
+
+pred_2025 <- as.numeric(PTS_2025_fc$mean)
+pred_lower95 <- as.numeric(PTS_2025_fc$lower[,2])
+pred_higher95 <- as.numeric(PTS_2025_fc$upper[,2])
+pred_lower80 <- as.numeric(PTS_2025_fc$lower[,1])
+pred_higher80 <- as.numeric(PTS_2025_fc$upper[,1])
+actual <- c(0.49, 0.74, 0.32, 0.23, 0.48, 0.78, 0.48, 0.61, 0.54, 0.59, 0.63, 0.61, 0.61, 0.61, 0.59, 0.45, 0.59, 0.60, 0.26, 0.62, 0.83, 0.50, 0.29, 0.44, 0.44, 0.49, 0.42, 0.37, 0.21, 0.22)
+
+table_2025 <- predict_2025_ar %>%
+  dplyr::select(Team) %>%
+  mutate(Actual_WIN_PCT = actual, WIN_PCT_Prediction = pred_2025, Difference = abs(actual - WIN_PCT_Prediction), Lower_Bound_95 = pred_lower95, Upper_Bound_95 = pred_higher95, Lower_Bound_80 = pred_lower80, Upper_Bound_80 = pred_higher80)
+
+kable(table_2025, digits=2)
