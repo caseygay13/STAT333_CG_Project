@@ -6,6 +6,8 @@ library(car)
 library(MASS)
 library(knitr)
 library(gridExtra)
+library(forecast)
+library(nlme)
 
 #Set-Up
 nba_data <- read.csv("nba_data(in).csv")
@@ -106,3 +108,25 @@ step_MSPE3 <- mean((test_ar$WIN_PCT - step_preds3)^2) #0.02545581
 
 #Current Progress Evaluation
 #An AR(1) model using the PTS Model Variables is the preferred model by the MSPE criterion
+
+
+
+
+
+
+# Trying to make AR(1) models work. # For PTS model with AR(1) errors
+
+
+# We will use this for the ar1 models
+PTS_gls <- gls(WIN_PCT~WIN_PCT_Last+ ORB_Last+TRB_Last+ STL_Last+ TOV_Last+ PF_Last+ PTS_Last, correlation=corAR1(form=~1),data=train_ar)
+
+# Shooting GLS
+shooting_gls <- gls(WIN_PCT ~ WIN_PCT_Last+X2PA_Last+X2P_PCT_Last+X3PA_Last+X3P_PCT_Last+FTA_Last+FT_PCT_Last+ORB_Last+DRB_Last+AST_Last+TOV_Last+PF_Last+STL_Last+BLK_Last, correlation=corAR1(form=~1),data=train_ar)
+
+# Stepwise GLS
+step_gls <- gls(WIN_PCT ~ WIN_PCT_Last+FGA_Last+X3P_Last+X3PA_Last+X2P_Last+X2PA_Last+FT_Last+ORB_Last+TRB_Last+AST_Last+STL_Last+TOV_Last+PF_Last, correlation=corAR1(form=~1),data=train_ar)
+
+
+
+
+
