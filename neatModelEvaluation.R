@@ -5,6 +5,7 @@ library(GGally)
 library(car)
 library(MASS)
 library(knitr)
+library(dplyr)
 library(gridExtra)
 library(forecast)
 library(nlme)
@@ -94,18 +95,6 @@ step_train2 <- lm(WIN_PCT ~ FGA+X3P+X3PA+X2P+X2PA+FT+ORB+TRB+AST+STL+TOV+PF, dat
 step_preds2 <- predict(step_train2, newdata=test_5yr)
 step_MSPE2 <- mean((test_5yr$WIN_PCT - step_preds2)^2) #0.001170818
 
-#Autoregressive AR(1) Model Testing (*need to change this from lm*)
-PTS_train3 <- lm(WIN_PCT ~ WIN_PCT_Last+ORB_Last+TRB_Last+STL_Last+TOV_Last+PF_Last+PTS_Last, data=train_ar)
-PTS_preds3 <- predict(PTS_train3, newdata=test_ar)
-PTS_MSPE3 <- mean((test_ar$WIN_PCT - PTS_preds3)^2) #0.02176663
-
-shooting_train3 <- lm(WIN_PCT ~ WIN_PCT_Last+X2PA_Last+X2P_PCT_Last+X3PA_Last+X3P_PCT_Last+FTA_Last+FT_PCT_Last+ORB_Last+DRB_Last+AST_Last+TOV_Last+PF_Last+STL_Last+BLK_Last, data = train_ar)
-shooting_preds3 <- predict(shooting_train3, newdata=test_ar)
-shooting_MSPE3 <- mean((test_ar$WIN_PCT - shooting_preds3)^2) #0.02679393
-
-step_train3 <- lm(WIN_PCT ~ WIN_PCT_Last+FGA_Last+X3P_Last+X3PA_Last+X2P_Last+X2PA_Last+FT_Last+ORB_Last+TRB_Last+AST_Last+STL_Last+TOV_Last+PF_Last, data = train_ar)
-step_preds3 <- predict(step_train3, newdata=test_ar)
-step_MSPE3 <- mean((test_ar$WIN_PCT - step_preds3)^2) #0.02545581
 
 
 # Current Progress Evaluation
@@ -113,30 +102,33 @@ step_MSPE3 <- mean((test_ar$WIN_PCT - step_preds3)^2) #0.02545581
 
 
 
-
-
-
-# Trying to make AR(1) models work. # For PTS model with AR(1) errors
-
-
-# We will use this for the ar1 models
-PTS_gls <- gls(WIN_PCT~WIN_PCT_Last+ ORB_Last+TRB_Last+ STL_Last+ TOV_Last+ PF_Last+ PTS_Last, correlation=corAR1(form=~1),data=train_ar)
-
-# Shooting GLS
-shooting_gls <- gls(WIN_PCT ~ WIN_PCT_Last+X2PA_Last+X2P_PCT_Last+X3PA_Last+X3P_PCT_Last+FTA_Last+FT_PCT_Last+ORB_Last+DRB_Last+AST_Last+TOV_Last+PF_Last+STL_Last+BLK_Last, correlation=corAR1(form=~1),data=train_ar)
-
-# Stepwise GLS
-step_gls <- gls(WIN_PCT ~ WIN_PCT_Last+FGA_Last+X3P_Last+X3PA_Last+X2P_Last+X2PA_Last+FT_Last+ORB_Last+TRB_Last+AST_Last+STL_Last+TOV_Last+PF_Last, correlation=corAR1(form=~1),data=train_ar)
-
 # forecasts
+# PTS forecast
+PTS_ar_model <- Arima(train_ar$WIN_PCT,
+                  xreg = as.matrix(train_ar[, c("WIN_PCT_Last", "ORB_Last", "TRB_Last", "STL_Last", "TOV_Last", "PF_Last", "PTS_Last")]),
+                  order = c(1,0,0))
+PTS_fc <- forecast(PTS_ar_model, xreg = as.matrix(test_ar[, c("WIN_PCT_Last", "ORB_Last", "TRB_Last", "STL_Last", "TOV_Last", "PF_Last", "PTS_Last")]))
+
+PTS_ar_preds <- as.numeric(PTS_fc$mean)
+PTS_ar_MSPE <- mean((test_ar$WIN_PCT - PTS_ar_preds)^2) # 0.02056293
+
+# Shooting forecast
+shooting_ar_model <- Arima(train_ar$WIN_PCT,
+                      xreg = as.matrix(train_ar[, c("WIN_PCT_Last","X2PA_Last","X2P_PCT_Last","X3PA_Last","X3P_PCT_Last","FTA_Last","FT_PCT_Last","ORB_Last","DRB_Last","AST_Last","TOV_Last","PF_Last","STL_Last","BLK_Last")]),
+                      order = c(1,0,0))
+shooting_fc <- forecast(shooting_ar_model, xreg = as.matrix(test_ar[, c("WIN_PCT_Last","X2PA_Last","X2P_PCT_Last","X3PA_Last","X3P_PCT_Last","FTA_Last","FT_PCT_Last","ORB_Last","DRB_Last","AST_Last","TOV_Last","PF_Last","STL_Last","BLK_Last")]))
+
+shooting_ar_preds <- as.numeric(shooting_fc$mean)
+shooting_ar_MSPE <- mean((test_ar$WIN_PCT - shooting_ar_preds)^2) # 0.02617148
+
+# stepwise forecast
+step_ar_model <- Arima(train_ar$WIN_PCT,
+                      xreg = as.matrix(train_ar[, c("WIN_PCT_Last","FGA_Last","X3P_Last","X3PA_Last","X2P_Last","X2PA_Last","FT_Last","ORB_Last","TRB_Last","AST_Last","STL_Last","TOV_Last","PF_Last")]),
+                      order = c(1,0,0))
+step_fc <- forecast(step_ar_model, xreg = as.matrix(test_ar[, c("WIN_PCT_Last","FGA_Last","X3P_Last","X3PA_Last","X2P_Last","X2PA_Last","FT_Last","ORB_Last","TRB_Last","AST_Last","STL_Last","TOV_Last","PF_Last")]))
+
+step_ar_preds <- as.numeric(step_fc$mean)
+step_ar_MSPE <- mean((test_ar$WIN_PCT - step_ar_preds)^2) # 0.02422745
 
 
-PTS_gls_preds <- predict(PTS_gls, newdata = test_ar)
-PTS_gls_MSPE <- mean((test_ar$WIN_PCT - PTS_gls_preds)^2) # 0.02092756
-
-shooting_gls_preds <- predict(shooting_gls, newdata = test_ar)
-shooting_gls_MSPE <- mean((test_ar$WIN_PCT - shooting_gls_preds)^2) # 0.02695467
-
-step_gls_preds <- predict(step_gls, newdata = test_ar)
-step_gls_MSPE <- mean((test_ar$WIN_PCT - step_gls_preds)^2) # 0.02493319
 
