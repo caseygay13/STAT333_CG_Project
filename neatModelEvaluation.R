@@ -60,7 +60,7 @@ nba_avg3 <- nba_data %>%
   group_by(Team) %>%
   mutate(across(
     where(is.numeric),
-    ~ slide_dbl(.x, mean, .before = 2, .complete = TRUE),
+    ~ slide_dbl(.x, mean, .before = 3, .after=-1, .complete = TRUE),
     .names = "{.col}_Avg3"
   )) %>%
   ungroup()
@@ -88,15 +88,15 @@ step_MSPE1 <- mean((test_1yr$WIN_PCT - step_preds1)^2) #0.02540999
 #3-Year Average Lag Model Testing (data must be changed to take 4-yr averages for testing)
 PTS_train2 <- lm(WIN_PCT ~ ORB_Avg3+TRB_Avg3+STL_Avg3+TOV_Avg3+PF_Avg3+PTS_Avg3, data=train_avg3)
 PTS_preds2 <- predict(PTS_train2, newdata=test_avg3)
-PTS_MSPE2 <- mean((test_avg3$WIN_PCT - PTS_preds2)^2) #0.01495211
+PTS_MSPE2 <- mean((test_avg3$WIN_PCT - PTS_preds2)^2) #0.02453875
 
 shooting_train2 <- lm(WIN_PCT ~ X2PA_Avg3+X2P_PCT_Avg3+X3PA_Avg3+X3P_PCT_Avg3+FTA_Avg3+FT_PCT_Avg3+ORB_Avg3+DRB_Avg3+AST_Avg3+TOV_Avg3+PF_Avg3+STL_Avg3+BLK_Avg3, data = train_avg3)
 shooting_preds2 <- predict(shooting_train2, newdata=test_avg3)
-shooting_MSPE2 <- mean((test_avg3$WIN_PCT - shooting_preds2)^2) #0.01575309
+shooting_MSPE2 <- mean((test_avg3$WIN_PCT - shooting_preds2)^2) #0.03185405
 
 step_train2 <- lm(WIN_PCT ~ FGA_Avg3+X3P_Avg3+X3PA_Avg3+X2P_Avg3+X2PA_Avg3+FT_Avg3+ORB_Avg3+TRB_Avg3+AST_Avg3+STL_Avg3+TOV_Avg3+PF_Avg3, data = train_avg3)
 step_preds2 <- predict(step_train2, newdata=test_avg3)
-step_MSPE2 <- mean((test_avg3$WIN_PCT - step_preds2)^2) #0.01610215
+step_MSPE2 <- mean((test_avg3$WIN_PCT - step_preds2)^2) #0.0289682
 
 # ARIMA forecasts
 # PTS forecast
@@ -130,12 +130,17 @@ step_ar_MSPE <- mean((test_ar$WIN_PCT - step_ar_preds)^2) # 0.02422745
 #Model Evaluation
 MSPE_table <- data.frame(
   MODEL = c("1-Yr Lag w/ PTS Variable Combination", "1-Yr Lag w/ Shooting Variable Combination", "1-Yr Lag w/ Stepwise Variable Combination", "3-Yr Average w/ PTS Variable Combination", "3-Yr Average w/ Shooting Variable Combination", "3-Yr Average w/ Stepwise Combination", "AR(1) w/ PTS Variable Combination", "AR(1) w/ Shooting Variable Combination", "AR(1) w/ Stepwise Variable Combination"),
-  MSPE = c("0.0222", "0.0265", "0.0254", "0.0150", "0.0158", "0.0161", "0.0206", "0.0262", "0.0242")
+  MSPE = c("0.0222", "0.0265", "0.0254", "0.0245", "0.0319", "0.0290", "0.0206", "0.0262", "0.0242")
 )
 kable(MSPE_table)
 
 MSPE_ordered <- data.frame(
-  MODEL = c("3-Yr Average w/ PTS Variable Combination", "3-Yr Average w/ Shooting Variable Combination", "3-Yr Average w/ Stepwise Variable Combination", "AR(1) w/ PTS Variable Combination", "1-Yr Lag w/ PTS Variable Combination", "AR(1) w/ Stepwise Variable Combination", "1-Yr Lag w/ Stepwise Variable Combination", "AR(1) w/ Shooting Variable Combination", "1-Yr Lag w/ Shooting Variable Combination"),
-  MSPE = c("0.0150", "0.0158", "0.0161", "0.0206", "0.0222", "0.0242", "0.0254", "0.0262", "0.0265")
+  MODEL = c("AR(1) w/ PTS Variable Combination", "1-Yr Lag w/ PTS Variable Combination", "AR(1) w/ Stepwise Variable Combination", "3-Yr Average w/ PTS Variable Combination", "1-Yr Lag w/ Stepwise Variable Combination", "AR(1) w/ Shooting Variable Combination", "1-Yr Lag w/ Shooting Variable Combination", "3-Yr Average w/ Stepwise Variable Combination", "3-Yr Average w/ Shooting Variable Combination"),
+  MSPE = c("0.0206", "0.0222", "0.0242", "0.0245", "0.0254", "0.0262", "0.0265", "0.0290", "0.0319")
 )
 kable(MSPE_ordered)
+
+
+#Forecasting 2024-2025
+chosen_mod <- PTS_ar_model
+summary(chosen_mod)
