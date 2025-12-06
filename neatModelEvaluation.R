@@ -85,23 +85,6 @@ step_train1 <- lm(WIN_PCT ~ FGA_Last+X3P_Last+X3PA_Last+X2P_Last+X2PA_Last+FT_La
 step_preds1 <- predict(step_train1, newdata=test_1yr)
 step_MSPE1 <- mean((test_1yr$WIN_PCT - step_preds1)^2) #0.02540999
 
-#5-Year Average Lag Model Testing (data must be changed to take 4-yr averages for testing)
-PTS_train2 <- lm(WIN_PCT ~ ORB+TRB+STL+TOV+PF+PTS, data=train_5yr)
-PTS_preds2 <- predict(PTS_train2, newdata=test_5yr)
-PTS_MSPE2 <- mean((test_5yr$WIN_PCT - PTS_preds2)^2) #0.001322774
-
-shooting_train2 <- lm(WIN_PCT ~ X2PA+X2P_PCT+X3PA+X3P_PCT+FTA+FT_PCT+ORB+DRB+AST+TOV+PF+STL+BLK, data = train_5yr)
-shooting_preds2 <- predict(shooting_train2, newdata=test_5yr)
-shooting_MSPE2 <- mean((test_5yr$WIN_PCT - shooting_preds2)^2) #0.001412503
-
-step_train2 <- lm(WIN_PCT ~ FGA+X3P+X3PA+X2P+X2PA+FT+ORB+TRB+AST+STL+TOV+PF, data = train_5yr)
-step_preds2 <- predict(step_train2, newdata=test_5yr)
-step_MSPE2 <- mean((test_5yr$WIN_PCT - step_preds2)^2) #0.001170818
-
-
-# Current Progress Evaluation
-# An AR(1) model using the PTS Model Variables is the preferred model by the MSPE criterion
-
 #3-Year Average Lag Model Testing (data must be changed to take 4-yr averages for testing)
 PTS_train2 <- lm(WIN_PCT ~ ORB_Avg3+TRB_Avg3+STL_Avg3+TOV_Avg3+PF_Avg3+PTS_Avg3, data=train_avg3)
 PTS_preds2 <- predict(PTS_train2, newdata=test_avg3)
@@ -115,19 +98,7 @@ step_train2 <- lm(WIN_PCT ~ FGA_Avg3+X3P_Avg3+X3PA_Avg3+X2P_Avg3+X2PA_Avg3+FT_Av
 step_preds2 <- predict(step_train2, newdata=test_avg3)
 step_MSPE2 <- mean((test_avg3$WIN_PCT - step_preds2)^2) #0.01610215
 
-# Trying to make AR(1) models work. # For PTS model with AR(1) errors
-
-
-# We will use this for the ar1 models
-PTS_gls <- gls(WIN_PCT~WIN_PCT_Last+ ORB_Last+TRB_Last+ STL_Last+ TOV_Last+ PF_Last+ PTS_Last, correlation=corAR1(form=~1),data=train_ar)
-
-# Shooting GLS
-shooting_gls <- gls(WIN_PCT ~ WIN_PCT_Last+X2PA_Last+X2P_PCT_Last+X3PA_Last+X3P_PCT_Last+FTA_Last+FT_PCT_Last+ORB_Last+DRB_Last+AST_Last+TOV_Last+PF_Last+STL_Last+BLK_Last, correlation=corAR1(form=~1),data=train_ar)
-
-# Stepwise GLS
-step_gls <- gls(WIN_PCT ~ WIN_PCT_Last+FGA_Last+X3P_Last+X3PA_Last+X2P_Last+X2PA_Last+FT_Last+ORB_Last+TRB_Last+AST_Last+STL_Last+TOV_Last+PF_Last, correlation=corAR1(form=~1),data=train_ar)
-
-# forecasts
+# ARIMA forecasts
 # PTS forecast
 PTS_ar_model <- Arima(train_ar$WIN_PCT,
                   xreg = as.matrix(train_ar[, c("WIN_PCT_Last", "ORB_Last", "TRB_Last", "STL_Last", "TOV_Last", "PF_Last", "PTS_Last")]),
@@ -156,4 +127,15 @@ step_ar_preds <- as.numeric(step_fc$mean)
 step_ar_MSPE <- mean((test_ar$WIN_PCT - step_ar_preds)^2) # 0.02422745
 
 
+#Model Evaluation
+MSPE_table <- data.frame(
+  MODEL = c("1-Yr Lag w/ PTS Variable Combination", "1-Yr Lag w/ Shooting Variable Combination", "1-Yr Lag w/ Stepwise Variable Combination", "3-Yr Average w/ PTS Variable Combination", "3-Yr Average w/ Shooting Variable Combination", "3-Yr Average w/ Stepwise Combination", "AR(1) w/ PTS Variable Combination", "AR(1) w/ Shooting Variable Combination", "AR(1) w/ Stepwise Variable Combination"),
+  MSPE = c("0.0222", "0.0265", "0.0254", "0.0150", "0.0158", "0.0161", "0.0206", "0.0262", "0.0242")
+)
+kable(MSPE_table)
 
+MSPE_ordered <- data.frame(
+  MODEL = c("3-Yr Average w/ PTS Variable Combination", "3-Yr Average w/ Shooting Variable Combination", "3-Yr Average w/ Stepwise Variable Combination", "AR(1) w/ PTS Variable Combination", "1-Yr Lag w/ PTS Variable Combination", "AR(1) w/ Stepwise Variable Combination", "1-Yr Lag w/ Stepwise Variable Combination", "AR(1) w/ Shooting Variable Combination", "1-Yr Lag w/ Shooting Variable Combination"),
+  MSPE = c("0.0150", "0.0158", "0.0161", "0.0206", "0.0222", "0.0242", "0.0254", "0.0262", "0.0265")
+)
+kable(MSPE_ordered)
