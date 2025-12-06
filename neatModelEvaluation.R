@@ -6,6 +6,7 @@ library(car)
 library(MASS)
 library(knitr)
 library(gridExtra)
+library(forecast)
 
 #Set-Up
 nba_data <- read.csv("nba_data(in).csv")
@@ -103,6 +104,3 @@ shooting_MSPE3 <- mean((test_ar$WIN_PCT - shooting_preds3)^2) #0.02679393
 step_train3 <- lm(WIN_PCT ~ WIN_PCT_Last+FGA_Last+X3P_Last+X3PA_Last+X2P_Last+X2PA_Last+FT_Last+ORB_Last+TRB_Last+AST_Last+STL_Last+TOV_Last+PF_Last, data = train_ar)
 step_preds3 <- predict(step_train3, newdata=test_ar)
 step_MSPE3 <- mean((test_ar$WIN_PCT - step_preds3)^2) #0.02545581
-
-#Current Progress Evaluation
-#An AR(1) model using the PTS Model Variables is the preferred model by the MSPE criterion
