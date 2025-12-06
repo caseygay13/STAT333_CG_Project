@@ -22,6 +22,7 @@ library(car)
 library(MASS)
 library(knitr)
 library(gridExtra)
+library(dplyr)
 
 
 nba_data <- read.csv("nba_data(in).csv")
@@ -425,4 +426,334 @@ p4 <- ggplot(pts_cor_df, aes(x = reorder(Variable, Correlation), y = Correlation
 NO_PF_model <- lm(formula = WIN_PCT ~ ORB + TRB + STL + TOV + PTS, data = nba_data)
 
 anova(best_model, NO_PF_model)
+```
+
+```{r}
+# Forecasting Model selection 
+select <- dplyr::select
+
+# Extract numeric season identifier for easier filtering
+nba_data$Season_Numeric <- as.numeric(sub("-.*", "", nba_data$Season))
+
+# Define variable sets based on prior descriptive analysis
+pts_vars <- c("ORB", "TRB", "STL", "TOV", "PF", "PTS")
+
+shooting_vars <- c("X2PA", "X2P_PCT", "X3PA", "X3P_PCT", "FTA", "FT_PCT", 
+                   "ORB", "DRB", "AST", "TOV", "PF", "STL", "BLK")
+
+stepwise_vars <- c("FGA", "X3P", "X3PA", "X2P", "X2PA", "FT", 
+                   "ORB", "TRB", "AST", "STL", "TOV", "PF")
+
+# Verify all required variables exist in dataset
+all_vars <- unique(c(pts_vars, shooting_vars, stepwise_vars))
+missing_vars <- setdiff(all_vars, colnames(nba_data))
+if(length(missing_vars) > 0) {
+  stop("ERROR: Missing required variables in dataset: ", 
+       paste(missing_vars, collapse = ", "))
+}
+
+# Create training and testing datasets
+train_seasons <- c(2018, 2020, 2021, 2022)
+test_season <- 2023
+
+train_data <- nba_data %>% filter(Season_Numeric %in% train_seasons)
+test_data <- nba_data %>% filter(Season_Numeric == test_season)
+
+# Validate train/test split
+if(nrow(train_data) == 0) stop("ERROR: No training data available")
+if(nrow(test_data) == 0) stop("ERROR: No testing data for 2023-2024 season")
+
+
+# ============================================================================
+# MODEL 1: 1-YEAR LAG MODEL
+# ============================================================================
+# Methodology: Uses statistics from t-1 to predict winning percentage at t
+# Rationale: Most recent performance is strongest predictor of future success
+# Team-specific: Each team's prediction uses only their own historical data
+
+forecast_1year_lag <- function(data_train, data_test, predictor_vars) {
+  
+  # Create lagged variables within each team
+  train_lagged <- data_train %>%
+    arrange(Team, Season_Numeric) %>%
+    group_by(Team) %>%
+    mutate(across(all_of(predictor_vars), 
+                  ~lag(., 1), 
+                  .names = "{.col}_lag1")) %>%
+    ungroup() %>%
+    filter(!is.na(!!sym(paste0(predictor_vars[1], "_lag1"))))
+  
+  # Ensure sufficient training data after lagging
+  if(nrow(train_lagged) == 0) {
+    stop("ERROR: No training observations remain after creating lagged variables")
+  }
+  
+  # Construct regression formula
+  lag_vars <- paste0(predictor_vars, "_lag1")
+  formula_str <- paste("WIN_PCT ~", paste(lag_vars, collapse = " + "))
+  
+  # Fit linear model
+  model <- lm(as.formula(formula_str), data = train_lagged)
+  
+  # Prepare test data: match each team with their most recent season statistics
+  most_recent_train <- data_train %>%
+    group_by(Team) %>%
+    filter(Season_Numeric == max(Season_Numeric)) %>%
+    ungroup() %>%
+    select(Team, all_of(predictor_vars))
+  
+  test_lagged <- data_test %>%
+    left_join(most_recent_train, by = "Team", suffix = c("", "_lag1"))
+  
+  # Identify and handle teams with missing historical data
+  missing_teams <- test_lagged %>% 
+    filter(is.na(!!sym(paste0(predictor_vars[1], "_lag1")))) %>%
+    pull(Team)
+  
+  if(length(missing_teams) > 0) {
+    warning("Teams excluded due to missing lag data: ", 
+            paste(missing_teams, collapse = ", "))
+    test_lagged <- test_lagged %>%
+      filter(!is.na(!!sym(paste0(predictor_vars[1], "_lag1"))))
+  }
+  
+  # Generate predictions
+  predictions <- predict(model, newdata = test_lagged)
+  
+  # Calculate mean squared prediction error
+  mspe <- mean((test_lagged$WIN_PCT - predictions)^2)
+  
+  # Return results
+  return(list(
+    model = model,
+    predictions = predictions,
+    actual = test_lagged$WIN_PCT,
+    teams = test_lagged$Team,
+    mspe = mspe,
+    n_predictions = length(predictions)
+  ))
+}
+
+
+# ============================================================================
+# MODEL 2: 5-YEAR AVERAGE MODEL
+# ============================================================================
+# Methodology: Uses historical averages across all available training seasons
+# Rationale: Smooths out single-season variance for more stable predictions
+# Team-specific: Each team's prediction uses their own multi-season averages
+
+forecast_5year_avg <- function(data_train, data_test, predictor_vars) {
+  
+  # Calculate historical averages for each team (for test predictions)
+  team_averages <- data_train %>%
+    group_by(Team) %>%
+    summarise(
+      n_seasons = n(),
+      across(all_of(predictor_vars), 
+             ~mean(., na.rm = TRUE), 
+             .names = "{.col}_avg")
+    )
+  
+  # Join averages to test data
+  test_with_avg <- data_test %>%
+    left_join(team_averages %>% select(-n_seasons), by = "Team")
+  
+  # Identify teams with missing historical data
+  missing_teams <- test_with_avg %>%
+    filter(is.na(!!sym(paste0(predictor_vars[1], "_avg")))) %>%
+    pull(Team)
+  
+  if(length(missing_teams) > 0) {
+    warning("Teams excluded due to insufficient historical data: ", 
+            paste(missing_teams, collapse = ", "))
+    test_with_avg <- test_with_avg %>%
+      filter(!is.na(!!sym(paste0(predictor_vars[1], "_avg"))))
+  }
+  
+  # Calculate leave-one-out averages for training (prevents data leakage)
+  # For each season, use the average of all OTHER seasons
+  train_with_avg <- data_train %>%
+    arrange(Team, Season_Numeric) %>%
+    group_by(Team) %>%
+    mutate(
+      n_obs = n(),
+      across(all_of(predictor_vars), 
+             ~(sum(., na.rm = TRUE) - .) / (n() - 1),
+             .names = "{.col}_avg")
+    ) %>%
+    ungroup() %>%
+    filter(n_obs > 1)  # Require at least 2 observations for leave-one-out
+  
+  # Verify sufficient training data
+  if(nrow(train_with_avg) == 0) {
+    stop("ERROR: Insufficient data for leave-one-out cross-validation in training")
+  }
+  
+  # Construct regression formula
+  avg_vars <- paste0(predictor_vars, "_avg")
+  formula_str <- paste("WIN_PCT ~", paste(avg_vars, collapse = " + "))
+  
+  # Fit linear model
+  model <- lm(as.formula(formula_str), data = train_with_avg)
+  
+  # Generate predictions
+  predictions <- predict(model, newdata = test_with_avg)
+  
+  # Calculate mean squared prediction error
+  mspe <- mean((test_with_avg$WIN_PCT - predictions)^2)
+  
+  # Return results
+  return(list(
+    model = model,
+    predictions = predictions,
+    actual = test_with_avg$WIN_PCT,
+    teams = test_with_avg$Team,
+    mspe = mspe,
+    n_predictions = length(predictions)
+  ))
+}
+
+
+# ============================================================================
+# MODEL 3: AUTOREGRESSIVE AR(1) MODEL
+# ============================================================================
+# Methodology: Incorporates previous winning percentage and lagged predictors
+#              with first-order autoregressive error structure
+# Rationale: Accounts for temporal dependence and momentum in team performance
+# Team-specific: Each team's WIN_PCT(t) depends on their own WIN_PCT(t-1)
+
+forecast_ar1 <- function(data_train, data_test, predictor_vars) {
+  
+  # Create lagged winning percentage and predictor variables within each team
+  train_ar <- data_train %>%
+    arrange(Team, Season_Numeric) %>%
+    group_by(Team) %>%
+    mutate(
+      WIN_PCT_lag1 = lag(WIN_PCT, 1),
+      across(all_of(predictor_vars), 
+             ~lag(., 1), 
+             .names = "{.col}_lag1")
+    ) %>%
+    ungroup() %>%
+    filter(!is.na(WIN_PCT_lag1))
+  
+  # Validate sufficient training data
+  if(nrow(train_ar) == 0) {
+    stop("ERROR: No training observations remain after creating AR(1) lags")
+  }
+  
+  # Construct regression formula with lagged winning percentage
+  lag_vars <- paste0(predictor_vars, "_lag1")
+  formula_str <- paste("WIN_PCT ~ WIN_PCT_lag1 +", paste(lag_vars, collapse = " + "))
+  
+  # Fit initial OLS model
+  model_ols <- lm(as.formula(formula_str), data = train_ar)
+  
+  # Estimate AR(1) parameter (phi) from residuals to assess autocorrelation
+  train_ar <- train_ar %>%
+    mutate(residuals = residuals(model_ols)) %>%
+    arrange(Team, Season_Numeric) %>%
+    group_by(Team) %>%
+    mutate(residuals_lag1 = lag(residuals, 1)) %>%
+    ungroup()
+  
+  # Fit AR model to residuals
+  ar_data <- train_ar %>% filter(!is.na(residuals_lag1))
+  
+  if(nrow(ar_data) > 0) {
+    phi_model <- lm(residuals ~ residuals_lag1 - 1, data = ar_data)
+    phi <- coef(phi_model)[1]
+    phi <- ifelse(is.na(phi) || is.nan(phi), 0, phi)
+  } else {
+    phi <- 0
+    warning("Unable to estimate AR(1) parameter; defaulting to phi = 0")
+  }
+  
+  # Prepare test data: match each team with their most recent season data
+  most_recent_train <- data_train %>%
+    group_by(Team) %>%
+    filter(Season_Numeric == max(Season_Numeric)) %>%
+    ungroup() %>%
+    select(Team, WIN_PCT, all_of(predictor_vars))
+  
+  test_ar <- data_test %>%
+    left_join(most_recent_train, 
+              by = "Team", 
+              suffix = c("_current", "_lag1")) %>%
+    rename(WIN_PCT = WIN_PCT_current)
+  
+  # Identify teams with missing historical data
+  missing_teams <- test_ar %>%
+    filter(is.na(WIN_PCT_lag1)) %>%
+    pull(Team)
+  
+  if(length(missing_teams) > 0) {
+    warning("Teams excluded from AR(1) due to missing lag data: ", 
+            paste(missing_teams, collapse = ", "))
+    test_ar <- test_ar %>%
+      filter(!is.na(WIN_PCT_lag1))
+  }
+  
+  # Generate predictions
+  predictions <- predict(model_ols, newdata = test_ar)
+  
+  # Calculate mean squared prediction error
+  mspe <- mean((test_ar$WIN_PCT - predictions)^2)
+  
+  # Return results
+  return(list(
+    model = model_ols,
+    phi = phi,
+    predictions = predictions,
+    actual = test_ar$WIN_PCT,
+    teams = test_ar$Team,
+    mspe = mspe,
+    n_predictions = length(predictions)
+  ))
+}
+
+
+# ============================================================================
+# EXECUTE ALL MODEL COMBINATIONS
+# ============================================================================
+
+results <- list()
+
+# 1-Year Lag Models
+results$lag1_pts <- forecast_1year_lag(train_data, test_data, pts_vars)
+results$lag1_shooting <- forecast_1year_lag(train_data, test_data, shooting_vars)
+results$lag1_stepwise <- forecast_1year_lag(train_data, test_data, stepwise_vars)
+
+# 5-Year Average Models
+results$avg5_pts <- forecast_5year_avg(train_data, test_data, pts_vars)
+results$avg5_shooting <- forecast_5year_avg(train_data, test_data, shooting_vars)
+results$avg5_stepwise <- forecast_5year_avg(train_data, test_data, stepwise_vars)
+
+# AR(1) Models
+results$ar1_pts <- forecast_ar1(train_data, test_data, pts_vars)
+results$ar1_shooting <- forecast_ar1(train_data, test_data, shooting_vars)
+results$ar1_stepwise <- forecast_ar1(train_data, test_data, stepwise_vars)
+
+
+# ============================================================================
+# MODEL COMPARISON AND EVALUATION
+# ============================================================================
+
+# Compile comparison metrics
+comparison <- data.frame(
+  Model = c("1-Year Lag - PTS", "1-Year Lag - Shooting", "1-Year Lag - Stepwise",
+            "5-Year Avg - PTS", "5-Year Avg - Shooting", "5-Year Avg - Stepwise",
+            "AR(1) - PTS", "AR(1) - Shooting", "AR(1) - Stepwise"),
+  MSPE = sapply(results, function(x) x$mspe),
+  RMSPE = sapply(results, function(x) sqrt(x$mspe)),
+  Num_Predictors = c(length(pts_vars), length(shooting_vars), length(stepwise_vars),
+                     length(pts_vars), length(shooting_vars), length(stepwise_vars),
+                     length(pts_vars) + 1, length(shooting_vars) + 1, 
+                     length(stepwise_vars) + 1),
+  N_Teams = sapply(results, function(x) x$n_predictions)
+) %>%
+  arrange(MSPE)
+
+
+
 ```
