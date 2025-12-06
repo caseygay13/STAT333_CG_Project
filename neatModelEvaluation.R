@@ -85,7 +85,6 @@ step_train1 <- lm(WIN_PCT ~ FGA_Last+X3P_Last+X3PA_Last+X2P_Last+X2PA_Last+FT_La
 step_preds1 <- predict(step_train1, newdata=test_1yr)
 step_MSPE1 <- mean((test_1yr$WIN_PCT - step_preds1)^2) #0.02540999
 
-<<<<<<< HEAD
 #5-Year Average Lag Model Testing (data must be changed to take 4-yr averages for testing)
 PTS_train2 <- lm(WIN_PCT ~ ORB+TRB+STL+TOV+PF+PTS, data=train_5yr)
 PTS_preds2 <- predict(PTS_train2, newdata=test_5yr)
@@ -100,12 +99,9 @@ step_preds2 <- predict(step_train2, newdata=test_5yr)
 step_MSPE2 <- mean((test_5yr$WIN_PCT - step_preds2)^2) #0.001170818
 
 
-
 # Current Progress Evaluation
 # An AR(1) model using the PTS Model Variables is the preferred model by the MSPE criterion
 
-
-=======
 #3-Year Average Lag Model Testing (data must be changed to take 4-yr averages for testing)
 PTS_train2 <- lm(WIN_PCT ~ ORB_Avg3+TRB_Avg3+STL_Avg3+TOV_Avg3+PF_Avg3+PTS_Avg3, data=train_avg3)
 PTS_preds2 <- predict(PTS_train2, newdata=test_avg3)
@@ -130,7 +126,6 @@ shooting_gls <- gls(WIN_PCT ~ WIN_PCT_Last+X2PA_Last+X2P_PCT_Last+X3PA_Last+X3P_
 
 # Stepwise GLS
 step_gls <- gls(WIN_PCT ~ WIN_PCT_Last+FGA_Last+X3P_Last+X3PA_Last+X2P_Last+X2PA_Last+FT_Last+ORB_Last+TRB_Last+AST_Last+STL_Last+TOV_Last+PF_Last, correlation=corAR1(form=~1),data=train_ar)
->>>>>>> 340b92229df0ad3cfe3558a86db9b110443d0424
 
 # forecasts
 # PTS forecast
