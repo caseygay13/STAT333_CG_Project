@@ -8,6 +8,8 @@ library(knitr)
 library(gridExtra)
 library(forecast)
 library(nlme)
+library(dplyr)
+library(slider)
 
 
 #Set-Up
@@ -48,23 +50,25 @@ lag1_data <- nba_data %>%
   mutate(across(where(is.numeric), lag, .names = "{.col}_Last")) %>%
   ungroup()
 train_1yr <- lag1_data %>% 
-  filter(Season %in% c("2019", "2021", "2022", "2023")) %>%
+  filter(Season %in% c("2021", "2022", "2023")) %>%
   filter(!if_any(ends_with("_Last"), is.na))
 test_1yr <- lag1_data %>% filter(Season == "2024")
 
-nba5 <- nba_data %>% filter(Season != "Overall")
-nba5$Season <- as.numeric(nba5$Season)
-test_avg <- nba5 %>%
+nba_avg3 <- nba_data %>%
+  filter(Season != "Overall") %>%
+  arrange(Team, Season) %>%
   group_by(Team) %>%
-  arrange(Season) %>%
-  slice_tail(n=4) %>%
-  summarize(Season="TestAvg", across(where(is.numeric),mean,na.rm=TRUE))
-nba_extended_data <- bind_rows(nba_data, test_avg)
-train_5yr <- nba_extended_data %>% filter(!Season %in% c("2024","Overall","TestAvg"))
-test_5yr <- nba_extended_data %>% filter(Season == "TestAvg")
+  mutate(across(
+    where(is.numeric),
+    ~ slide_dbl(.x, mean, .before = 2, .complete = TRUE),
+    .names = "{.col}_Avg3"
+  )) %>%
+  ungroup()
+train_avg3 <- nba_avg3 %>% filter(Season %in% c("2021", "2022", "2023"))
+test_avg3  <- nba_avg3 %>% filter(Season == "2024")
 
 train_ar <- lag1_data %>% 
-  filter(Season %in% c("2019", "2021", "2022", "2023")) %>%
+  filter(Season %in% c("2021", "2022", "2023")) %>%
   filter(!if_any(ends_with("_Last"), is.na))
 test_ar <- lag1_data %>% filter(Season == "2024")
 
@@ -81,40 +85,18 @@ step_train1 <- lm(WIN_PCT ~ FGA_Last+X3P_Last+X3PA_Last+X2P_Last+X2PA_Last+FT_La
 step_preds1 <- predict(step_train1, newdata=test_1yr)
 step_MSPE1 <- mean((test_1yr$WIN_PCT - step_preds1)^2) #0.02540999
 
-#5-Year Average Lag Model Testing (data must be changed to take 4-yr averages for testing)
-PTS_train2 <- lm(WIN_PCT ~ ORB+TRB+STL+TOV+PF+PTS, data=train_5yr)
-PTS_preds2 <- predict(PTS_train2, newdata=test_5yr)
-PTS_MSPE2 <- mean((test_5yr$WIN_PCT - PTS_preds2)^2) #0.001322774
+#3-Year Average Lag Model Testing (data must be changed to take 4-yr averages for testing)
+PTS_train2 <- lm(WIN_PCT ~ ORB_Avg3+TRB_Avg3+STL_Avg3+TOV_Avg3+PF_Avg3+PTS_Avg3, data=train_avg3)
+PTS_preds2 <- predict(PTS_train2, newdata=test_avg3)
+PTS_MSPE2 <- mean((test_avg3$WIN_PCT - PTS_preds2)^2) #0.01495211
 
-shooting_train2 <- lm(WIN_PCT ~ X2PA+X2P_PCT+X3PA+X3P_PCT+FTA+FT_PCT+ORB+DRB+AST+TOV+PF+STL+BLK, data = train_5yr)
-shooting_preds2 <- predict(shooting_train2, newdata=test_5yr)
-shooting_MSPE2 <- mean((test_5yr$WIN_PCT - shooting_preds2)^2) #0.001412503
+shooting_train2 <- lm(WIN_PCT ~ X2PA_Avg3+X2P_PCT_Avg3+X3PA_Avg3+X3P_PCT_Avg3+FTA_Avg3+FT_PCT_Avg3+ORB_Avg3+DRB_Avg3+AST_Avg3+TOV_Avg3+PF_Avg3+STL_Avg3+BLK_Avg3, data = train_avg3)
+shooting_preds2 <- predict(shooting_train2, newdata=test_avg3)
+shooting_MSPE2 <- mean((test_avg3$WIN_PCT - shooting_preds2)^2) #0.01575309
 
-step_train2 <- lm(WIN_PCT ~ FGA+X3P+X3PA+X2P+X2PA+FT+ORB+TRB+AST+STL+TOV+PF, data = train_5yr)
-step_preds2 <- predict(step_train2, newdata=test_5yr)
-step_MSPE2 <- mean((test_5yr$WIN_PCT - step_preds2)^2) #0.001170818
-
-#Autoregressive AR(1) Model Testing (*need to change this from lm*)
-PTS_train3 <- lm(WIN_PCT ~ WIN_PCT_Last+ORB_Last+TRB_Last+STL_Last+TOV_Last+PF_Last+PTS_Last, data=train_ar)
-PTS_preds3 <- predict(PTS_train3, newdata=test_ar)
-PTS_MSPE3 <- mean((test_ar$WIN_PCT - PTS_preds3)^2) #0.02176663
-
-shooting_train3 <- lm(WIN_PCT ~ WIN_PCT_Last+X2PA_Last+X2P_PCT_Last+X3PA_Last+X3P_PCT_Last+FTA_Last+FT_PCT_Last+ORB_Last+DRB_Last+AST_Last+TOV_Last+PF_Last+STL_Last+BLK_Last, data = train_ar)
-shooting_preds3 <- predict(shooting_train3, newdata=test_ar)
-shooting_MSPE3 <- mean((test_ar$WIN_PCT - shooting_preds3)^2) #0.02679393
-
-step_train3 <- lm(WIN_PCT ~ WIN_PCT_Last+FGA_Last+X3P_Last+X3PA_Last+X2P_Last+X2PA_Last+FT_Last+ORB_Last+TRB_Last+AST_Last+STL_Last+TOV_Last+PF_Last, data = train_ar)
-step_preds3 <- predict(step_train3, newdata=test_ar)
-step_MSPE3 <- mean((test_ar$WIN_PCT - step_preds3)^2) #0.02545581
-
-
-# Current Progress Evaluation
-# An AR(1) model using the PTS Model Variables is the preferred model by the MSPE criterion
-
-
-
-
-
+step_train2 <- lm(WIN_PCT ~ FGA_Avg3+X3P_Avg3+X3PA_Avg3+X2P_Avg3+X2PA_Avg3+FT_Avg3+ORB_Avg3+TRB_Avg3+AST_Avg3+STL_Avg3+TOV_Avg3+PF_Avg3, data = train_avg3)
+step_preds2 <- predict(step_train2, newdata=test_avg3)
+step_MSPE2 <- mean((test_avg3$WIN_PCT - step_preds2)^2) #0.01610215
 
 # Trying to make AR(1) models work. # For PTS model with AR(1) errors
 
