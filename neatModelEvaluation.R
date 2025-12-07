@@ -164,3 +164,18 @@ table_2025 <- predict_2025_ar %>%
   mutate(Actual_WIN_PCT = actual, WIN_PCT_Prediction = pred_2025, Difference = abs(actual - WIN_PCT_Prediction), Lower_Bound_95 = pred_lower95, Upper_Bound_95 = pred_higher95, Lower_Bound_80 = pred_lower80, Upper_Bound_80 = pred_higher80)
 
 kable(table_2025, digits=2)
+
+
+
+
+
+
+# acf of chosen model 
+# Extract residuals
+res <- residuals(PTS_ar_model)
+
+# Plot ACF of residuals
+acf(res, main = "ACF of Residuals from ARIMA Model")
+
+
+
