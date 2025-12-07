@@ -164,7 +164,7 @@ table_2025 <- predict_2025_ar %>%
   mutate(Actual_WIN_PCT = actual, WIN_PCT_Prediction = pred_2025, Difference = abs(actual - WIN_PCT_Prediction), Lower_Bound_95 = pred_lower95, Upper_Bound_95 = pred_higher95, Lower_Bound_80 = pred_lower80, Upper_Bound_80 = pred_higher80)
 
 kable(table_2025, digits=2)
-<<<<<<< HEAD
+
 
 
 
@@ -180,5 +180,4 @@ acf(res, main = "ACF of Residuals from ARIMA Model")
 
 
 
-=======
->>>>>>> 4e481879c95992b678ba98367e78f21854f60b4e
+
