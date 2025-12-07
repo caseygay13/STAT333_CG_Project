@@ -10,6 +10,9 @@ library(forecast)
 library(nlme)
 library(dplyr)
 library(slider)
+library(ggimage)
+library(ggplot2)
+library(ggtext) 
 
 
 #Set-Up
@@ -177,6 +180,70 @@ res <- residuals(PTS_ar_model)
 
 # Plot ACF of residuals
 acf(res, main = "ACF of Residuals from ARIMA Model")
+
+
+
+# Final graphic of predicted team win pct
+ 
+plot_2025 <- table_2025 %>%
+  mutate(
+    Team = factor(Team, levels = Team),
+    # Flag teams outside 95% PI
+    Outside_95 = Actual_WIN_PCT < Lower_Bound_95 | Actual_WIN_PCT > Upper_Bound_95
+  )
+
+# Create a color vector for x-axis text
+axis_colors <- ifelse(plot_2025$Outside_95, "red", "black")
+
+ggplot(plot_2025, aes(x = Team)) +
+  
+  # 95% Prediction Interval
+  geom_ribbon(aes(ymin = Lower_Bound_95, ymax = Upper_Bound_95),
+              fill = "#b3d1ff", alpha = 0.55) +
+  
+  # 80% Prediction Interval
+  geom_ribbon(aes(ymin = Lower_Bound_80, ymax = Upper_Bound_80),
+              fill = "#66a3ff", alpha = 0.45) +
+  
+  # Predicted WIN% (blue)
+  geom_point(aes(y = WIN_PCT_Prediction, color = "Predicted"),
+             size = 3.7) +
+  
+  # Actual WIN% (red)
+  geom_point(aes(y = Actual_WIN_PCT, color = "Actual"),
+             size = 3.7) +
+  
+  # Lines connecting prediction → actual
+  geom_segment(aes(xend = Team,
+                   y = WIN_PCT_Prediction,
+                   yend = Actual_WIN_PCT),
+               color = "gray30", linewidth = 0.9) +
+  
+  # Legend colors
+  scale_color_manual(
+    values = c("Predicted" = "blue", "Actual" = "red"),
+    name = ""
+  ) +
+  
+  labs(
+    title = "NBA 2024–25 Win%: Forecast vs Actual",
+    subtitle = "Teams outside the 95% prediction interval are highlighted in red on the x-axis",
+    x = "Team",
+    y = "Winning Percentage"
+  ) +
+  
+  theme_minimal(base_size = 15) +
+  theme(
+    axis.text.x = element_text(angle = 60, hjust = 1, color = axis_colors),
+    plot.title = element_text(face = "bold", size = 18),
+    plot.subtitle = element_text(size = 13),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.position = "top"
+  )
+
+
+
 
 
 
