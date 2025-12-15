@@ -88,6 +88,19 @@ step_train1 <- lm(WIN_PCT ~ FGA_Last+X3P_Last+X3PA_Last+X2P_Last+X2PA_Last+FT_La
 step_preds1 <- predict(step_train1, newdata=test_1yr)
 step_MSPE1 <- mean((test_1yr$WIN_PCT - step_preds1)^2) #0.02540999
 
+#1-Year Lag Model Testing w/ Last Win%
+PTS_train4 <- lm(WIN_PCT ~ WIN_PCT_Last+ORB_Last+TRB_Last+STL_Last+TOV_Last+PF_Last+PTS_Last, data=train_1yr)
+PTS_preds4 <- predict(PTS_train4, newdata=test_1yr)
+PTS_MSPE4 <- mean((test_1yr$WIN_PCT - PTS_preds4)^2) #0.02176663
+
+shooting_train4 <- lm(WIN_PCT ~ WIN_PCT_Last+X2PA_Last+X2P_PCT_Last+X3PA_Last+X3P_PCT_Last+FTA_Last+FT_PCT_Last+ORB_Last+DRB_Last+AST_Last+TOV_Last+PF_Last+STL_Last+BLK_Last, data = train_1yr)
+shooting_preds4 <- predict(shooting_train4, newdata=test_1yr)
+shooting_MSPE4 <- mean((test_1yr$WIN_PCT - shooting_preds4)^2) #0.02679393
+
+step_train4 <- lm(WIN_PCT ~ WIN_PCT_Last+FGA_Last+X3P_Last+X3PA_Last+X2P_Last+X2PA_Last+FT_Last+ORB_Last+TRB_Last+AST_Last+STL_Last+TOV_Last+PF_Last, data = train_1yr)
+step_preds4 <- predict(step_train4, newdata=test_1yr)
+step_MSPE4 <- mean((test_1yr$WIN_PCT - step_preds4)^2) #0.02545581
+
 #3-Year Average Lag Model Testing (data must be changed to take 4-yr averages for testing)
 PTS_train2 <- lm(WIN_PCT ~ ORB_Avg3+TRB_Avg3+STL_Avg3+TOV_Avg3+PF_Avg3+PTS_Avg3, data=train_avg3)
 PTS_preds2 <- predict(PTS_train2, newdata=test_avg3)
@@ -128,6 +141,34 @@ step_fc <- forecast(step_ar_model, xreg = as.matrix(test_ar[, c("WIN_PCT_Last","
 
 step_ar_preds <- as.numeric(step_fc$mean)
 step_ar_MSPE <- mean((test_ar$WIN_PCT - step_ar_preds)^2) # 0.02422745
+
+# new ARIMA forecasts
+# PTS forecast
+PTS_ar_model2 <- Arima(train_ar$WIN_PCT,
+                      xreg = as.matrix(train_ar[, c("ORB_Last", "TRB_Last", "STL_Last", "TOV_Last", "PF_Last", "PTS_Last")]),
+                      order = c(1,0,0))
+PTS_fc2 <- forecast(PTS_ar_model2, xreg = as.matrix(test_ar[, c("ORB_Last", "TRB_Last", "STL_Last", "TOV_Last", "PF_Last", "PTS_Last")]))
+
+PTS_ar_preds2 <- as.numeric(PTS_fc2$mean)
+PTS_ar_MSPE2 <- mean((test_ar$WIN_PCT - PTS_ar_preds2)^2) #0.02175304
+
+# Shooting forecast
+shooting_ar_model2 <- Arima(train_ar$WIN_PCT,
+                           xreg = as.matrix(train_ar[, c("X2PA_Last","X2P_PCT_Last","X3PA_Last","X3P_PCT_Last","FTA_Last","FT_PCT_Last","ORB_Last","DRB_Last","AST_Last","TOV_Last","PF_Last","STL_Last","BLK_Last")]),
+                           order = c(1,0,0))
+shooting_fc2 <- forecast(shooting_ar_model2, xreg = as.matrix(test_ar[, c("X2PA_Last","X2P_PCT_Last","X3PA_Last","X3P_PCT_Last","FTA_Last","FT_PCT_Last","ORB_Last","DRB_Last","AST_Last","TOV_Last","PF_Last","STL_Last","BLK_Last")]))
+
+shooting_ar_preds2 <- as.numeric(shooting_fc2$mean)
+shooting_ar_MSPE2 <- mean((test_ar$WIN_PCT - shooting_ar_preds2)^2) # 0.02680037
+
+# stepwise forecast
+step_ar_model2 <- Arima(train_ar$WIN_PCT,
+                       xreg = as.matrix(train_ar[, c("FGA_Last","X3P_Last","X3PA_Last","X2P_Last","X2PA_Last","FT_Last","ORB_Last","TRB_Last","AST_Last","STL_Last","TOV_Last","PF_Last")]),
+                       order = c(1,0,0))
+step_fc2 <- forecast(step_ar_model2, xreg = as.matrix(test_ar[, c("FGA_Last","X3P_Last","X3PA_Last","X2P_Last","X2PA_Last","FT_Last","ORB_Last","TRB_Last","AST_Last","STL_Last","TOV_Last","PF_Last")]))
+
+step_ar_preds2 <- as.numeric(step_fc2$mean)
+step_ar_MSPE2 <- mean((test_ar$WIN_PCT - step_ar_preds2)^2) # 0.02560242
 
 
 #Model Evaluation
