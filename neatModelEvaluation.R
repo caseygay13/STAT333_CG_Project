@@ -284,7 +284,126 @@ ggplot(plot_2025, aes(x = Team)) +
   )
 
 
+# Forecasting 2024–25 (Correct AR(1) PTS Model)
 
+
+predict_2025_ar <- lag1_data %>%
+  filter(Season == "2024") %>%
+  dplyr::select(
+    Team,
+    ORB_Last, TRB_Last, STL_Last,
+    TOV_Last, PF_Last, PTS_Last
+  )
+
+PTS_2025_fc <- forecast(
+  PTS_ar_model2,
+  xreg = as.matrix(predict_2025_ar[, -1])
+)
+
+pred_2025       <- as.numeric(PTS_2025_fc$mean)
+pred_lower95    <- as.numeric(PTS_2025_fc$lower[, 2])
+pred_upper95    <- as.numeric(PTS_2025_fc$upper[, 2])
+pred_lower80    <- as.numeric(PTS_2025_fc$lower[, 1])
+pred_upper80    <- as.numeric(PTS_2025_fc$upper[, 1])
+
+actual <- c(
+  0.49, 0.74, 0.32, 0.23, 0.48, 0.78, 0.48, 0.61, 0.54, 0.59,
+  0.63, 0.61, 0.61, 0.61, 0.59, 0.45, 0.59, 0.60, 0.26, 0.62,
+  0.83, 0.50, 0.29, 0.44, 0.44, 0.49, 0.42, 0.37, 0.21, 0.22
+)
+
+table_2025 <- predict_2025_ar %>%
+  mutate(
+    Actual_WIN_PCT = actual,
+    WIN_PCT_Prediction = pred_2025,
+    Lower_Bound_95 = pred_lower95,
+    Upper_Bound_95 = pred_upper95,
+    Lower_Bound_80 = pred_lower80,
+    Upper_Bound_80 = pred_upper80,
+    Outside_95 = Actual_WIN_PCT < Lower_Bound_95 |
+      Actual_WIN_PCT > Upper_Bound_95
+  )
+
+
+# Prepare plotting data
+
+
+plot_2025 <- table_2025 %>%
+  arrange(Team) %>%   # keep alphabetical order
+  mutate(
+    Team = factor(Team, levels = Team),
+    Outside_95 = Actual_WIN_PCT < Lower_Bound_95 |
+      Actual_WIN_PCT > Upper_Bound_95
+  )
+
+axis_colors <- ifelse(plot_2025$Outside_95, "red", "black")
+
+
+# Final Visualization
+
+
+ggplot(plot_2025, aes(x = Team)) +
+  
+  # 95% Prediction Interval
+  geom_ribbon(
+    aes(ymin = Lower_Bound_95, ymax = Upper_Bound_95),
+    fill = "#b3d1ff", alpha = 0.55
+  ) +
+  
+  # 80% Prediction Interval
+  geom_ribbon(
+    aes(ymin = Lower_Bound_80, ymax = Upper_Bound_80),
+    fill = "#66a3ff", alpha = 0.45
+  ) +
+  
+  # Predicted WIN%
+  geom_point(
+    aes(y = WIN_PCT_Prediction, color = "Predicted"),
+    size = 3.6
+  ) +
+  
+  # Actual WIN%
+  geom_point(
+    aes(y = Actual_WIN_PCT, color = "Actual"),
+    size = 3.6
+  ) +
+  
+  # Lines connecting prediction → actual
+  geom_segment(
+    aes(
+      xend = Team,
+      y = WIN_PCT_Prediction,
+      yend = Actual_WIN_PCT
+    ),
+    color = "gray30",
+    linewidth = 0.9
+  ) +
+  
+  scale_color_manual(
+    values = c("Predicted" = "blue", "Actual" = "red"),
+    name = ""
+  ) +
+  
+  labs(
+    title = "NBA 2024–25 Win%: Forecast vs Actual",
+    subtitle = "AR(1) Model with PTS Variable Combination\nTeams outside the 95% prediction interval are highlighted in red",
+    x = "Team",
+    y = "Winning Percentage"
+  ) +
+  
+  theme_minimal(base_size = 15) +
+  theme(
+    axis.text.x = element_text(
+      angle = 60,
+      hjust = 1,
+      color = axis_colors
+    ),
+    plot.title = element_text(face = "bold", size = 18),
+    plot.subtitle = element_text(size = 13),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    legend.position = "top"
+  )
 
 
 
