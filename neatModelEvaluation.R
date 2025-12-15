@@ -286,6 +286,7 @@ ggplot(plot_2025, aes(x = Team)) +
 
 # Forecasting 2024–25 (Correct AR(1) PTS Model)
 
+chosen_mod<- Arima(lag1_data$WIN_PCT, xreg = as.matrix(lag1_data[, c("ORB_Last", "TRB_Last", "STL_Last", "TOV_Last", "PF_Last", "PTS_Last")]), order = c(1,0,0))
 
 predict_2025_ar <- lag1_data %>%
   filter(Season == "2024") %>%
