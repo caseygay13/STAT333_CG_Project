@@ -13,6 +13,7 @@ library(slider)
 library(ggimage)
 library(ggplot2)
 library(ggtext) 
+library(lmtest)
 
 
 #Set-Up
@@ -160,6 +161,7 @@ shooting_fc2 <- forecast(shooting_ar_model2, xreg = as.matrix(test_ar[, c("X2PA_
 
 shooting_ar_preds2 <- as.numeric(shooting_fc2$mean)
 shooting_ar_MSPE2 <- mean((test_ar$WIN_PCT - shooting_ar_preds2)^2) # 0.02680037
+P-val <- coeftest(PTS_ar_model2)
 
 # stepwise forecast
 step_ar_model2 <- Arima(train_ar$WIN_PCT,
