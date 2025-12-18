@@ -180,7 +180,7 @@ MSPE_table <- data.frame(
 kable(MSPE_table)
 
 MSPE_ordered <- data.frame(
-  MODEL = c("AR(1) w/ PTS Variable Combination", "1-Yr Lag w/ Prior Win% and PTS Variables", "1-Yr Lag w/ PTS Variable Combination", "3-Yr Average w/ Stepwise Variable Combination", "1-Yr Lag w/ Stepwise Variable Combination", "1-Yr Lag w/ Prior Win% and Stepwise Variables", "AR(1) w/ Stepwise Variable Combination", "1-Yr Lag w/ Shooting Variable Combination", "1-Yr Lag w/ Prior Win% and Shooting Variables", "AR(1) w/ Shooting Varaible Combination", "3-Yr Average w/ Stepwise Variable Combination", "3-Yr Average w/ Shooting Variable Combination"),
+  MODEL = c("AR(1) w/ PTS Variable Combination", "1-Yr Lag w/ Prior Win% and PTS Variables", "1-Yr Lag w/ PTS Variable Combination", "3-Yr Average w/ PTS Variable Combination", "1-Yr Lag w/ Stepwise Variable Combination", "1-Yr Lag w/ Prior Win% and Stepwise Variables", "AR(1) w/ Stepwise Variable Combination", "1-Yr Lag w/ Shooting Variable Combination", "1-Yr Lag w/ Prior Win% and Shooting Variables", "AR(1) w/ Shooting Varaible Combination", "3-Yr Average w/ Stepwise Variable Combination", "3-Yr Average w/ Shooting Variable Combination"),
   MSPE = c("0.0217", "0.0218", "0.0222", "0.0245", "0.0254", "0.0255", "0.0256", "0.0265", "0.0268", "0.0268", "0.0290", "0.0319")
 )
 kable(MSPE_ordered)
