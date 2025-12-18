@@ -289,7 +289,7 @@ ggplot(plot_2025, aes(x = Team)) +
 
 chosen_mod<- Arima(lag1_data$WIN_PCT, xreg = as.matrix(lag1_data[, c("ORB_Last", "TRB_Last", "STL_Last", "TOV_Last", "PF_Last", "PTS_Last")]), order = c(1,0,0))
 summary(chosen_mod)
-P_val <- coeftest(PTS_ar_model2)
+P_val <- coeftest(chosen_mod)
 P_val
 
 predict_2025_ar <- lag1_data %>%
